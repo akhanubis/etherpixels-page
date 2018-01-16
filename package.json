@@ -24,6 +24,7 @@
   "homepage": "https://github.com/mgonto/heroku-static-file-server",
   "dependencies": {
     "forever": "^0.15.3",
-    "serve": "^1.4.0"
+    "serve": "^1.4.0",
+    "send": "^0.11.1"
   }
 }
