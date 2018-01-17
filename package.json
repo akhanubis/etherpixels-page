@@ -4,7 +4,8 @@
   "description": "Serves static files. To be used in Heroku",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start_canvas_updater_prod": "set NODE_ENV=production&&set FILE_DIR=build_webpack&&node build_worker/canvas_updater.js"
   },
   "repository": {
     "type": "git",
