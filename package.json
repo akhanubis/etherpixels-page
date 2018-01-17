@@ -23,9 +23,16 @@
     "url": "https://github.com/mgonto/heroku-static-file-server/issues"
   },
   "homepage": "https://github.com/mgonto/heroku-static-file-server",
+  "devDependencies": {
+    "truffle-contract": "^1.1.8",
+    "truffle-solidity-loader": "0.0.8"
+  },
   "dependencies": {
-    "forever": "^0.15.3",
+    "aws-sdk": "^2.183.0",
+    "canvas": "^1.6.9",
+    "send": "^0.11.1",
     "serve": "^1.4.0",
-    "send": "^0.11.1"
+    "truffle-contract": "^1.1.8",
+    "truffle-solidity-loader": "0.0.8"
   }
 }
