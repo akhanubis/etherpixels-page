@@ -26,7 +26,7 @@ var _CanvasUtils2 = _interopRequireDefault(_CanvasUtils);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-require('dotenv').config();
+require('dotenv').config({ silent: true });
 
 var fs = require('fs');
 var zlib = require('zlib');

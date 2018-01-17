@@ -30,6 +30,7 @@
   "dependencies": {
     "aws-sdk": "^2.183.0",
     "canvas": "^1.6.9",
+    "dotenv": "^4.0.0",
     "send": "^0.11.1",
     "serve": "^1.4.0",
     "truffle-contract": "^1.1.8",
