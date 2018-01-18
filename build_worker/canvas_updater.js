@@ -149,6 +149,23 @@ var start_watching = function start_watching() {
   });
 };
 
+var reset_cache = function reset_cache(b_number) {
+  max_index = -1;
+  last_cache_block = genesis_block;
+  process_new_block(b_number);
+};
+
+var continue_cache = function continue_cache(b_number, img_buffer) {
+  var img = new Canvas.Image();
+  img.src = "data:image/png;base64," + Buffer.from(img_buffer).toString('base64');
+  console.log("Last cache dimensions: " + img.width + "x" + img.height);
+  canvas = new Canvas(img.width, img.height);
+  pixel_buffer_ctx = canvas.getContext('2d');
+  pixel_buffer_ctx.drawImage(img, 0, 0);
+  var old_index = store_new_index(b_number);
+  resize_canvas(old_index);
+};
+
 web3 = get_web3();
 canvasContract.setProvider(web3.currentProvider);
 canvasContract.deployed().then(function (contract_instance) {
@@ -159,10 +176,7 @@ canvasContract.deployed().then(function (contract_instance) {
     genesis_block = g_block;
     console.log("Genesis block: " + g_block + "\nFetching init.json...");
     s3.getObject({ Bucket: bucket, Key: init_key }, function (error, data) {
-      if (error) {
-        console.log('File init.json not found, setting last_cache_block to genesis_block');
-        last_cache_block = g_block;
-      } else {
+      if (error) console.log('File init.json not found');else {
         var json_data = JSON.parse(data.Body.toString());
         last_cache_block = json_data.last_cache_block;
         console.log("Last block cached: " + last_cache_block);
@@ -172,44 +186,27 @@ canvasContract.deployed().then(function (contract_instance) {
       console.log('Fetching current block...');
       web3.eth.getBlockNumber(function (error, b_number) {
         if (error) throw error;else {
-          if (last_cache_block > b_number) {
-            console.log('Last cache file seems to point to older contract version, ignoring...');
-            resize_canvas(-1);
-            start_watching();
-          } else {
-            store_new_index(b_number);
-            canvas = new Canvas(canvas_dimension, canvas_dimension);
-            pixel_buffer_ctx = canvas.getContext('2d');
-            console.log('Cache');
-            if (matching_contract) {
-              console.log("Reading " + bucket + "/" + pixels_key + "...");
-              s3.getObject({ Bucket: bucket, Key: pixels_key }, function (error, pixels_data) {
-                if (error) {
-                  console.log('Last cache file not found');
-                  resize_canvas(-1);
-                } else {
-                  var last_cache_dimension = _ContractToWorld2.default.canvas_dimension(_ContractToWorld2.default.max_index(genesis_block, last_cache_block));
-                  console.log("Last cache dimensions: " + last_cache_dimension + "x" + last_cache_dimension);
-                  var offset = 0.5 * (canvas_dimension - last_cache_dimension);
-                  var img = new Canvas.Image();
-                  img.src = "data:image/png;base64," + Buffer.from(pixels_data.Body).toString('base64');
-                  pixel_buffer_ctx.drawImage(img, offset, offset);
-                  /*
-                  fs.readFile('public/owners.png', (e2, file_data2) => {
-                    console.log(file_data2.length)
-                    let buffer = zlib.deflateSync(file_data2)
-                    console.log(buffer.length)
-                    //console.log(buffer_to_array_buffer(file_data2))
-                    //owner_data = file_data2
-                  })*/
-                }
-                start_watching();
-              });
-            } else {
-              console.log('Last cache file points to older contract version, ignoring...');
-              resize_canvas(-1);
+          if (matching_contract) {
+            console.log("Reading " + bucket + "/" + pixels_key + "...");
+            s3.getObject({ Bucket: bucket, Key: pixels_key }, function (error, pixels_data) {
+              if (error) {
+                console.log('Last cache file not found, resetting cache...');
+                reset_cache(b_number);
+              } else continue_cache(b_number, pixels_data.Body);
+              /*
+              fs.readFile('public/owners.png', (e2, file_data2) => {
+                console.log(file_data2.length)
+                let buffer = zlib.deflateSync(file_data2)
+                console.log(buffer.length)
+                //console.log(buffer_to_array_buffer(file_data2))
+                //owner_data = file_data2
+              })*/
               start_watching();
-            }
+            });
+          } else {
+            console.log('Last cache file points to older contract version, resetting cache...');
+            reset_cache(b_number);
+            start_watching();
           }
           setInterval(function () {
             console.log("Listening for events...");
