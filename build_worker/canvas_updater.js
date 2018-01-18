@@ -167,10 +167,7 @@ canvasContract.deployed().then(function (contract_instance) {
         last_cache_block = json_data.last_cache_block;
         console.log("Last block cached: " + last_cache_block);
         var cache_address = json_data.contract_address;
-        console.log(instance.address);
-        console.log(cache_address);
         matching_contract = cache_address === instance.address;
-        console.log(matching_contract);
       }
       console.log('Fetching current block...');
       web3.eth.getBlockNumber(function (error, b_number) {

@@ -1,28 +1,26 @@
 {
-  "name": "static-file-server",
-  "version": "0.0.0",
-  "description": "Serves static files. To be used in Heroku",
+  "name": "ethpaint",
+  "version": "0.0.1",
+  "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start_canvas_updater_prod": "set NODE_ENV=production&&set FILE_DIR=build_webpack&&node build_worker/canvas_updater.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mgonto/heroku-static-file-server"
+    "url": "git+https://github.com/akhanubis/fictional-chainsaw-page.git"
   },
   "keywords": [
-    "static",
-    "file",
-    "serve",
-    "heroku"
+    "ethereum"
   ],
-  "author": "Martin Gontovnikas",
-  "license": "MIT",
+  "author": "Pablo Bianciotto",
+  "license": "ISC",
   "bugs": {
-    "url": "https://github.com/mgonto/heroku-static-file-server/issues"
+    "url": "https://github.com/akhanubis/fictional-chainsaw-page/issues"
   },
-  "homepage": "https://github.com/mgonto/heroku-static-file-server",
+  "homepage": "https://github.com/akhanubis/fictional-chainsaw-page#readme",
   "devDependencies": {
     "truffle-contract": "^1.1.8",
     "truffle-solidity-loader": "0.0.8"
@@ -31,8 +29,8 @@
     "aws-sdk": "^2.183.0",
     "canvas": "^1.6.9",
     "dotenv": "^4.0.0",
-    "send": "^0.11.1",
-    "serve": "^1.4.0",
+    "express": "^4.16.2",
+    "newrelic": "^2.6.0",
     "truffle-contract": "^1.1.8",
     "truffle-solidity-loader": "0.0.8"
   }
