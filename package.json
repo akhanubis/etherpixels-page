@@ -30,6 +30,7 @@
     "canvas": "^1.6.9",
     "dotenv": "^4.0.0",
     "express": "^4.16.2",
+    "left-pad": "^1.2.0",
     "newrelic": "^2.6.0",
     "truffle-contract": "^1.1.8",
     "truffle-solidity-loader": "0.0.8"

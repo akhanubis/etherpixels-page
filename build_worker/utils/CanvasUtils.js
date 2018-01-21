@@ -48,7 +48,7 @@ var CanvasUtils = function () {
       new_context.putImageData(i_data, buffer_coords.x, buffer_coords.y);
       new_pixels_world_coords.push(world_coords);
     }
-    callback(new_context, new_pixels_world_coords, offset_w, offset_h);
+    if (callback) callback(new_context, new_pixels_world_coords, offset_w, offset_h);else return new_context;
   };
 
   return {

@@ -31,18 +31,20 @@ require('dotenv').config({ silent: true });
 var fs = require('fs');
 var zlib = require('zlib');
 var Canvas = require('canvas');
+var left_pad = require('left-pad');
 var ProviderEngine = require('web3-provider-engine');
 var ZeroClientProvider = require('web3-provider-engine/zero.js');
 var contract = require('truffle-contract');
 var canvasContract = contract(_Canvas2.default);
 var AWS = require('aws-sdk');
 var s3 = new AWS.S3();
+var buffer_entry_size = 29; /* 20 bytes for address, 9 bytes for price */
+var free_pixel_buffer = Buffer.allocUnsafe(buffer_entry_size).fill('0000000000000000000000000000000000000000000011C37937E08000', 'hex'); /* empty address and 0.005 eth */
 
-var owner_canvas = null;
 var canvas = null;
 var canvas_dimension = null;
 var pixel_buffer_ctx = null;
-var owner_ctx = null;
+var address_buffer = new Buffer(0);
 var genesis_block = null;
 var last_cache_block = null;
 var current_block = null;
@@ -52,6 +54,7 @@ var instance = null;
 
 var bucket = process.env.REACT_APP_S3_BUCKET;
 var pixels_key = 'pixels.png';
+var buffer_key = 'addresses.buf';
 var init_key = 'init.json';
 
 var get_web3 = function get_web3() {
@@ -77,36 +80,52 @@ var get_web3 = function get_web3() {
   return new _web2.default(provider);
 };
 
-var write_file = function write_file() {
-  console.log("Updating files...");
-  s3.upload({ ACL: 'public-read', Bucket: bucket, Key: pixels_key, Body: canvas.toBuffer() }, function (err, data) {
-    if (err) console.log(err);else console.log("New pixels.png: " + data.ETag);
-  });
+var upload_callback = function upload_callback(err, data) {
+  if (err) console.log(err);else console.log("New " + data.key + ": " + data.ETag);
+};
+
+var update_cache = function update_cache() {
+  console.log("Updating cache...");
+  s3.upload({ ACL: 'public-read', Bucket: bucket, Key: pixels_key, Body: canvas.toBuffer() }, upload_callback);
   var init_json = JSON.stringify({ contract_address: instance.address, last_cache_block: current_block /* restarle 1 ????? */ });
-  s3.upload({ ACL: 'public-read', Bucket: bucket, Key: init_key, Body: init_json }, function (err, data) {
-    if (err) console.log(err);else console.log("New init.json: " + data.ETag);
-  });
+  s3.upload({ ACL: 'public-read', Bucket: bucket, Key: init_key, Body: init_json }, upload_callback);
+  var deflated_body = zlib.deflateRawSync(address_buffer);
+  s3.upload({ ACL: 'public-read', Bucket: bucket, Key: buffer_key, Body: deflated_body }, upload_callback);
 };
 
 var process_new_block = function process_new_block(b_number) {
+  console.log("New block: " + b_number);
   var old_dimension = canvas_dimension;
   var old_index = store_new_index(b_number);
-  console.log("New canvas dimensions: " + canvas_dimension + "x" + canvas_dimension + "\nNew canvas index: " + max_index);
-  resize_canvas(old_index);
+  resize_assets(old_index);
 };
 
 var process_pixel_solds = function process_pixel_solds(pixel_solds) {
-  console.log("Processing " + pixel_solds.length + " pixels");
+  console.log("Processing " + pixel_solds.length + " pixel/s");
   pixel_solds.forEach(function (log) {
-    var world_coords = new _ContractToWorld2.default(log.args.i.toNumber()).get_coords();
-    var canvas_coords = _WorldToCanvas2.default.to_buffer(world_coords.x, world_coords.y, { width: canvas_dimension, height: canvas_dimension });
-    var pixel_array = new Uint8ClampedArray(_ColorUtils2.default.bytes3ToIntArray(log.args.new_color));
-    var image_data = new Canvas.ImageData(pixel_array, 1, 1);
-    pixel_buffer_ctx.putImageData(image_data, canvas_coords.x, canvas_coords.y);
     //TODO: mandar email a old_owner
+    update_pixel(log);
+    update_buffer(log);
+
     var owner = log.args.new_owner;
     var price = log.args.price;
   });
+};
+
+var update_pixel = function update_pixel(log) {
+  var world_coords = new _ContractToWorld2.default(log.args.i.toNumber()).get_coords();
+  var canvas_coords = _WorldToCanvas2.default.to_buffer(world_coords.x, world_coords.y, { width: canvas_dimension, height: canvas_dimension });
+  var pixel_array = new Uint8ClampedArray(_ColorUtils2.default.bytes3ToIntArray(log.args.new_color));
+  var image_data = new Canvas.ImageData(pixel_array, 1, 1);
+  pixel_buffer_ctx.putImageData(image_data, canvas_coords.x, canvas_coords.y);
+};
+
+var update_buffer = function update_buffer(log) {
+  var offset = buffer_entry_size * log.args.i.toNumber();
+  var formatted_address = log.args.new_owner.substr(2, 40);
+  var formatted_price = left_pad(log.args.price.toString(16), 18, 0);
+  var entry = formatted_address + formatted_price;
+  address_buffer.fill(entry, offset, offset + buffer_entry_size, 'hex');
 };
 
 var pixel_sold_handler = function pixel_sold_handler(error, result) {
@@ -115,26 +134,30 @@ var pixel_sold_handler = function pixel_sold_handler(error, result) {
   process_pixel_solds(result);
 };
 
-var buffer_to_array_buffer = function buffer_to_array_buffer(b) {
-  // TypedArray
-  return new Uint32Array(b.buffer, b.byteOffset, b.byteLength / Uint32Array.BYTES_PER_ELEMENT);
-};
-
 var store_new_index = function store_new_index(b_number) {
   var old_index = max_index;
   current_block = b_number;
-  console.log("Current block:" + current_block);
   max_index = _ContractToWorld2.default.max_index(genesis_block, current_block);
   canvas_dimension = _ContractToWorld2.default.canvas_dimension(max_index);
   return old_index;
 };
 
 var resize_canvas = function resize_canvas(old_i) {
+  console.log("Resizing canvas to: " + canvas_dimension + "x" + canvas_dimension + "...");
   canvas = new Canvas(canvas_dimension, canvas_dimension); /* pixel_buffer_ctx keeps a temp reference to old canvas */
-  _CanvasUtils2.default.resize_canvas(pixel_buffer_ctx, canvas, { width: canvas_dimension, height: canvas_dimension }, old_i, max_index, Canvas.ImageData, function (new_ctx) {
-    pixel_buffer_ctx = new_ctx;
-    write_file();
-  });
+  pixel_buffer_ctx = _CanvasUtils2.default.resize_canvas(pixel_buffer_ctx, canvas, { width: canvas_dimension, height: canvas_dimension }, old_i, max_index, Canvas.ImageData);
+};
+
+var resize_buffer = function resize_buffer(old_i) {
+  console.log("Resizing buffer to: " + buffer_entry_size * (max_index + 1) + "...");
+  address_buffer = Buffer.concat([address_buffer, Buffer.allocUnsafe(buffer_entry_size * (max_index - old_i)).fill(free_pixel_buffer)], buffer_entry_size * (max_index + 1));
+};
+
+var resize_assets = function resize_assets(old_i) {
+  console.log("Resizing assets: " + old_i + " => " + max_index + "...");
+  resize_canvas(old_i);
+  resize_buffer(old_i);
+  update_cache();
 };
 
 var start_watching = function start_watching() {
@@ -150,20 +173,48 @@ var start_watching = function start_watching() {
 };
 
 var reset_cache = function reset_cache(b_number) {
+  console.log("Resetting cache...");
   max_index = -1;
   last_cache_block = genesis_block;
   process_new_block(b_number);
+  start_watching();
 };
 
-var continue_cache = function continue_cache(b_number, img_buffer) {
+var continue_cache = function continue_cache(b_number, pixels_data, buffer_data) {
+  console.log('Using stored cache...');
+  /* init the canvas with the last cached image */
   var img = new Canvas.Image();
-  img.src = "data:image/png;base64," + Buffer.from(img_buffer).toString('base64');
+  img.src = "data:image/png;base64," + Buffer.from(pixels_data).toString('base64');
   console.log("Last cache dimensions: " + img.width + "x" + img.height);
   canvas = new Canvas(img.width, img.height);
   pixel_buffer_ctx = canvas.getContext('2d');
   pixel_buffer_ctx.drawImage(img, 0, 0);
+  /* init the buffer with the last cached buffer */
+  address_buffer = buffer_data;
+  max_index = _ContractToWorld2.default.max_index(genesis_block, last_cache_block); /* temp set mat_index to old_index to set old_index to the right value */
   var old_index = store_new_index(b_number);
-  resize_canvas(old_index);
+  resize_assets(old_index);
+  start_watching();
+};
+
+var fetch_pixels = function fetch_pixels(b_number) {
+  console.log("Reading " + bucket + "/" + pixels_key + "...");
+  s3.getObject({ Bucket: bucket, Key: pixels_key }, function (error, pixels_data) {
+    if (error) {
+      console.log('Last pixels file not found');
+      reset_cache(b_number);
+    } else fetch_buffer(b_number, pixels_data.Body);
+  });
+};
+
+var fetch_buffer = function fetch_buffer(b_number, pixels_data) {
+  console.log("Reading " + bucket + "/" + buffer_key + "...");
+  s3.getObject({ Bucket: bucket, Key: buffer_key }, function (error, buffer_data) {
+    if (error) {
+      console.log('Last buffer file not found');
+      reset_cache(b_number);
+    } else continue_cache(b_number, pixels_data, buffer_data.Body);
+  });
 };
 
 web3 = get_web3();
@@ -186,27 +237,9 @@ canvasContract.deployed().then(function (contract_instance) {
       console.log('Fetching current block...');
       web3.eth.getBlockNumber(function (error, b_number) {
         if (error) throw error;else {
-          if (matching_contract) {
-            console.log("Reading " + bucket + "/" + pixels_key + "...");
-            s3.getObject({ Bucket: bucket, Key: pixels_key }, function (error, pixels_data) {
-              if (error) {
-                console.log('Last cache file not found, resetting cache...');
-                reset_cache(b_number);
-              } else continue_cache(b_number, pixels_data.Body);
-              /*
-              fs.readFile('public/owners.png', (e2, file_data2) => {
-                console.log(file_data2.length)
-                let buffer = zlib.deflateSync(file_data2)
-                console.log(buffer.length)
-                //console.log(buffer_to_array_buffer(file_data2))
-                //owner_data = file_data2
-              })*/
-              start_watching();
-            });
-          } else {
-            console.log('Last cache file points to older contract version, resetting cache...');
+          if (matching_contract) fetch_pixels(b_number);else {
+            console.log('Last cache files point to older contract version, resetting cache...');
             reset_cache(b_number);
-            start_watching();
           }
           setInterval(function () {
             console.log("Listening for events...");
