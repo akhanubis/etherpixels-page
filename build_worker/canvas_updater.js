@@ -40,6 +40,7 @@ var AWS = require('aws-sdk');
 var s3 = new AWS.S3();
 var buffer_entry_size = 29; /* 20 bytes for address, 9 bytes for price */
 var free_pixel_buffer = Buffer.allocUnsafe(buffer_entry_size).fill('0000000000000000000000000000000000000000000011C37937E08000', 'hex'); /* empty address and 0.005 eth */
+var new_pixel_image_data = _CanvasUtils2.default.semitrans_image_data(Canvas.ImageData);
 
 var canvas = null;
 var canvas_dimension = null;
@@ -145,7 +146,7 @@ var store_new_index = function store_new_index(b_number) {
 var resize_canvas = function resize_canvas(old_i) {
   console.log("Resizing canvas to: " + canvas_dimension + "x" + canvas_dimension + "...");
   canvas = new Canvas(canvas_dimension, canvas_dimension); /* pixel_buffer_ctx keeps a temp reference to old canvas */
-  pixel_buffer_ctx = _CanvasUtils2.default.resize_canvas(pixel_buffer_ctx, canvas, { width: canvas_dimension, height: canvas_dimension }, old_i, max_index, Canvas.ImageData);
+  pixel_buffer_ctx = _CanvasUtils2.default.resize_canvas(pixel_buffer_ctx, canvas, { width: canvas_dimension, height: canvas_dimension }, old_i, max_index, new_pixel_image_data);
 };
 
 var resize_buffer = function resize_buffer(old_i) {
