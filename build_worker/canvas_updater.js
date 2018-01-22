@@ -130,9 +130,11 @@ var update_buffer = function update_buffer(log) {
 };
 
 var pixel_sold_handler = function pixel_sold_handler(error, result) {
-  if (error) console.error(error);else if (result.transactionHash) // event, not log
-    result = [result];
-  process_pixel_solds(result);
+  if (error) console.error(error);else {
+    if (result.transactionHash) // event, not log
+      result = [result];
+    process_pixel_solds(result);
+  }
 };
 
 var store_new_index = function store_new_index(b_number) {
