@@ -164,15 +164,21 @@ var resize_assets = function resize_assets(old_i) {
 };
 
 var start_watching = function start_watching() {
-  var pixel_sold_event = instance.PixelSold({}, { fromBlock: last_cache_block, toBlock: 'latest' });
-  pixel_sold_event.watch(pixel_sold_handler);
-  pixel_sold_event.get(pixel_sold_handler);
+  process_past_logs(last_cache_block);
 
   web3.eth.filter("latest").watch(function (error, block_hash) {
     web3.eth.getBlock(block_hash, function (error, result) {
-      if (error) console.error(error);else if (result.number > current_block) process_new_block(result.number);
+      if (error) console.error(error);else if (result.number > current_block) {
+        process_new_block(result.number);
+        process_past_logs(current_block);
+      }
     });
   });
+};
+
+var process_past_logs = function process_past_logs(last_processed_block) {
+  console.log("Fetching events since " + last_processed_block + "...");
+  instance.PixelSold({}, { fromBlock: last_processed_block, toBlock: 'latest' }).get(pixel_sold_handler);
 };
 
 var reset_cache = function reset_cache(b_number) {
