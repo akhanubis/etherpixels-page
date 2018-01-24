@@ -39,7 +39,7 @@ var canvasContract = contract(_Canvas2.default);
 var AWS = require('aws-sdk');
 var s3 = new AWS.S3();
 var buffer_entry_size = 29; /* 20 bytes for address, 9 bytes for price */
-var free_pixel_buffer = Buffer.allocUnsafe(buffer_entry_size).fill('0000000000000000000000000000000000000000000000000000008000', 'hex'); /* empty address and 0.005 eth */
+var free_pixel_buffer = Buffer.allocUnsafe(buffer_entry_size).fill('0000000000000000000000000000000000000000000000000000000000', 'hex'); /* empty address and price */
 var new_pixel_image_data = _CanvasUtils2.default.semitrans_image_data(Canvas.ImageData);
 
 var canvas = null;
