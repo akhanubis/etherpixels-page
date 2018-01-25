@@ -36,6 +36,7 @@ var ProviderEngine = require('web3-provider-engine');
 var ZeroClientProvider = require('web3-provider-engine/zero.js');
 var contract = require('truffle-contract');
 var canvasContract = contract(_Canvas2.default);
+var Pusher = require('pusher');
 var AWS = require('aws-sdk');
 var s3 = new AWS.S3();
 var buffer_entry_size = 29; /* 20 bytes for address, 9 bytes for price */
@@ -52,6 +53,12 @@ var current_block = null;
 var max_index = null;
 var web3 = null;
 var instance = null;
+var pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID || process.env.REACT_APP_PUSHER_APP_ID,
+  key: process.env.PUSHER_APP_KEY || process.env.REACT_APP_PUSHER_APP_KEY,
+  secret: process.env.PUSHER_APP_SECRET || process.env.REACT_APP_PUSHER_APP_SECRET,
+  encrypted: true
+});
 
 var bucket = process.env.REACT_APP_S3_BUCKET;
 var pixels_key = 'pixels.png';
@@ -88,7 +95,7 @@ var upload_callback = function upload_callback(err, data) {
 var update_cache = function update_cache() {
   console.log("Updating cache...");
   s3.upload({ ACL: 'public-read', Bucket: bucket, Key: pixels_key, Body: canvas.toBuffer() }, upload_callback);
-  var init_json = JSON.stringify({ contract_address: instance.address, last_cache_block: current_block /* restarle 1 ????? */ });
+  var init_json = JSON.stringify({ contract_address: instance.address, last_cache_block: current_block });
   s3.upload({ ACL: 'public-read', Bucket: bucket, Key: init_key, Body: init_json }, upload_callback);
   var deflated_body = zlib.deflateRawSync(address_buffer);
   s3.upload({ ACL: 'public-read', Bucket: bucket, Key: buffer_key, Body: deflated_body }, upload_callback);
@@ -102,15 +109,15 @@ var process_new_block = function process_new_block(b_number) {
 };
 
 var process_pixel_solds = function process_pixel_solds(pixel_solds) {
-  console.log("Processing " + pixel_solds.length + " pixel/s");
+  console.log("Processing " + pixel_solds.length + " pixel" + (pixel_solds.length == 1 ? '' : 's'));
   pixel_solds.forEach(function (log) {
     //TODO: mandar email a old_owner
     update_pixel(log);
     update_buffer(log);
-
-    var owner = log.args.new_owner;
-    var price = log.args.price;
   });
+  update_cache();
+  //TODO GUARDAR EN UN BUFFER LOS ULTIMOS 100 eventos asi desp de recibir este push el cliente los busca
+  pusher.trigger('main', 'new_block', { new_block: current_block, events: pixel_solds });
 };
 
 var update_pixel = function update_pixel(log) {
@@ -160,7 +167,6 @@ var resize_assets = function resize_assets(old_i) {
   console.log("Resizing assets: " + old_i + " => " + max_index + "...");
   resize_canvas(old_i);
   resize_buffer(old_i);
-  update_cache();
 };
 
 var start_watching = function start_watching() {
