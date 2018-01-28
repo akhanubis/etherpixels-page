@@ -24,6 +24,10 @@ var _CanvasUtils = require("./utils/CanvasUtils.js");
 
 var _CanvasUtils2 = _interopRequireDefault(_CanvasUtils);
 
+var _LogUtils = require("./utils/LogUtils.js");
+
+var _LogUtils2 = _interopRequireDefault(_LogUtils);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 require('dotenv').config({ silent: true });
@@ -39,8 +43,8 @@ var canvasContract = contract(_Canvas2.default);
 var Pusher = require('pusher');
 var AWS = require('aws-sdk');
 var s3 = new AWS.S3();
-var buffer_entry_size = 29; /* 20 bytes for address, 9 bytes for price */
-var free_pixel_buffer = Buffer.allocUnsafe(buffer_entry_size).fill('0000000000000000000000000000000000000000000000000000000000', 'hex'); /* empty address and price */
+var buffer_entry_size = 24; /* 20 bytes for address, 4 bytes for locked_until */
+var free_pixel_buffer = Buffer.allocUnsafe(buffer_entry_size).fill('000000000000000000000000000000000000000000000000', 'hex'); /* empty address and locked_until */
 var new_pixel_image_data = _CanvasUtils2.default.semitrans_image_data(Canvas.ImageData);
 
 var canvas = null;
@@ -110,14 +114,16 @@ var process_new_block = function process_new_block(b_number) {
 
 var process_pixel_solds = function process_pixel_solds(pixel_solds) {
   console.log("Processing " + pixel_solds.length + " pixel" + (pixel_solds.length == 1 ? '' : 's'));
+  var pusher_events = [];
   pixel_solds.forEach(function (log) {
     //TODO: mandar email a old_owner
     update_pixel(log);
     update_buffer(log);
+    pusher_events.push(_LogUtils2.default.to_event(log));
   });
   update_cache();
   //TODO GUARDAR EN UN BUFFER LOS ULTIMOS 100 eventos asi desp de recibir este push el cliente los busca
-  pusher.trigger('main', 'new_block', { new_block: current_block, events: pixel_solds });
+  pusher.trigger('main', 'new_block', { new_block: current_block, events: pusher_events });
 };
 
 var update_pixel = function update_pixel(log) {
@@ -131,17 +137,13 @@ var update_pixel = function update_pixel(log) {
 var update_buffer = function update_buffer(log) {
   var offset = buffer_entry_size * log.args.i.toNumber();
   var formatted_address = log.args.new_owner.substr(2, 40);
-  var formatted_price = left_pad(log.args.price.toString(16), 18, 0);
-  var entry = formatted_address + formatted_price;
+  var formatted_locked_until = left_pad(log.args.locked_until.toString(16), 8, 0);
+  var entry = formatted_address + formatted_locked_until;
   address_buffer.fill(entry, offset, offset + buffer_entry_size, 'hex');
 };
 
 var pixel_sold_handler = function pixel_sold_handler(error, result) {
-  if (error) console.error(error);else {
-    if (result.transactionHash) // event, not log
-      result = [result];
-    process_pixel_solds(result);
-  }
+  if (error) console.error(error);else process_pixel_solds(result);
 };
 
 var store_new_index = function store_new_index(b_number) {
