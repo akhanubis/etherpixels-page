@@ -177,8 +177,9 @@ var start_watching = function start_watching() {
   web3.eth.filter("latest").watch(function (error, block_hash) {
     web3.eth.getBlock(block_hash, function (error, result) {
       if (error) console.error(error);else if (result.number > current_block) {
+        var last_processed_block = current_block;
         process_new_block(result.number);
-        process_past_logs(current_block);
+        process_past_logs(last_processed_block);
       }
     });
   });
