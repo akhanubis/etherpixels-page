@@ -70,14 +70,12 @@ var CanvasUtils = function () {
       offset_h = 0.5 * (new_size.height - old_ctx.canvas.height);
       new_context.drawImage(old_ctx.canvas, offset_w, offset_h);
     }
-    var new_pixels_world_coords = [];
     for (var i = old_max_index; i < new_max_index; i++) {
       var world_coords = new _ContractToWorld2.default(i + 1).get_coords();
       var buffer_coords = _WorldToCanvas2.default.to_buffer(world_coords.x, world_coords.y, new_size);
       new_context.putImageData(i_data_for_new_pixel, buffer_coords.x, buffer_coords.y);
-      new_pixels_world_coords.push(world_coords);
     }
-    if (callback) callback(new_context, new_pixels_world_coords, offset_w, offset_h);else return new_context;
+    if (callback) callback(new_context, offset_w, offset_h);else return new_context;
   };
 
   return {
