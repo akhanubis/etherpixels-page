@@ -61,7 +61,7 @@ var CanvasUtils = function () {
 
   var resize_canvas = function resize_canvas(old_ctx, new_canvas, new_size, old_max_index, new_max_index, i_data_for_new_pixel, callback) {
     var offset_w, offset_h;
-    var new_context = getContext(new_canvas, old_ctx.imageSmoothingEnabled); /* preserve aliasing */
+    var new_context = getContext(new_canvas, old_ctx ? old_ctx.imageSmoothingEnabled : false); /* preserve aliasing */
     new_canvas.width = new_size.width;
     new_canvas.height = new_size.height;
     clear(new_context, 'rgba(0,0,0,0)');
