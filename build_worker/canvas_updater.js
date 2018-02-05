@@ -114,16 +114,19 @@ var process_new_block = function process_new_block(b_number) {
 
 var process_pixel_solds = function process_pixel_solds(pixel_solds) {
   console.log("Processing " + pixel_solds.length + " pixel" + (pixel_solds.length == 1 ? '' : 's'));
-  var pusher_events = [];
+  var pusher_events = {};
   pixel_solds.forEach(function (log) {
-    //TODO: mandar email a old_owner
     update_pixel(log);
     update_buffer(log);
-    pusher_events.push(_LogUtils2.default.to_event(log));
+    _LogUtils2.default.to_sorted_event(pusher_events, log);
   });
   update_cache();
-  //TODO GUARDAR EN UN BUFFER LOS ULTIMOS 100 eventos asi desp de recibir este push el cliente los busca
-  pusher.trigger('main', 'new_block', { new_block: current_block, events: pusher_events });
+  pusher.trigger('main', 'new_block', { new_block: current_block });
+  console.log('New block pushed');
+  Object.keys(pusher_events).forEach(function (tx) {
+    pusher.trigger('main', 'new_tx', { hash: tx, events: pusher_events[tx] });
+    console.log("Transaction pushed: " + tx);
+  });
 };
 
 var update_pixel = function update_pixel(log) {
@@ -186,8 +189,8 @@ var start_watching = function start_watching() {
 };
 
 var process_past_logs = function process_past_logs(last_processed_block) {
-  console.log("Fetching events since " + last_processed_block + "...");
-  instance.PixelPainted({}, { fromBlock: last_processed_block, toBlock: 'latest' }).get(pixel_sold_handler);
+  console.log("Fetching events from " + (last_processed_block + 1) + " to " + current_block);
+  instance.PixelPainted({}, { fromBlock: last_processed_block + 1, toBlock: current_block }).get(pixel_sold_handler);
 };
 
 var reset_cache = function reset_cache(b_number) {
