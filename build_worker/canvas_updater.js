@@ -123,9 +123,9 @@ var process_pixel_solds = function process_pixel_solds(pixel_solds) {
   update_cache();
   pusher.trigger('main', 'new_block', { new_block: current_block });
   console.log('New block pushed');
-  Object.keys(pusher_events).forEach(function (tx) {
-    pusher.trigger('main', 'new_tx', { hash: tx, events: pusher_events[tx] });
-    console.log("Transaction pushed: " + tx);
+  Object.keys(pusher_events).forEach(function (tx_hash) {
+    pusher.trigger('main', 'new_tx', pusher_events[tx_hash]);
+    console.log("Transaction pushed: " + tx_hash);
   });
 };
 
