@@ -23,7 +23,7 @@ var LogUtils = function () {
     });
     /* find the tx that was sent referencing the same pixels than the one given */
     return pending_txs.findIndex(function (pending_tx) {
-      return indexes.length === pending_tx.pixels.length && indexes.every(function (i) {
+      return pending_tx.owner === tx_info.owner && indexes.length === pending_tx.pixels.length && indexes.every(function (i) {
         return pending_tx.pixels.find(function (p) {
           return p.index === i;
         });
@@ -33,7 +33,7 @@ var LogUtils = function () {
 
   var matching_tx_with_gas_index = function matching_tx_with_gas_index(pending_txs, tx_info) {
     return pending_txs.findIndex(function (pending_tx) {
-      return pending_tx.gas === tx_info.gas;
+      return pending_tx.owner === tx_info.owner && pending_tx.gas === tx_info.gas;
     });
   };
 
