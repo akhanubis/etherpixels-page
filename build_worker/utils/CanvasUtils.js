@@ -39,10 +39,6 @@ var CanvasUtils = function () {
   };
 
   var clear = function clear(ctx, color) {
-    console.log("CLEAR");
-    console.log(color);
-    console.log(ctx.canvas.width);
-    console.log(ctx.canvas.height);
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   };
