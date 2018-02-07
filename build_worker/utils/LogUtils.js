@@ -17,23 +17,23 @@ var LogUtils = function () {
     });
   };
 
-  var remaining_txs = function remaining_txs(pending_txs, tx_info) {
+  var mined_tx_index = function mined_tx_index(pending_txs, tx_info) {
     var indexes = tx_info.pixels.map(function (p) {
       return p.i;
     });
-    return pending_txs.filter(function (pending_tx) {
-      /* take out the tx that was sent by the same account and referencing the same pixels than the one given */
-      return !(tx_info.owner === pending_tx.caller && indexes.length === pending_tx.pixels.length && indexes.every(function (i) {
+    return pending_txs.findIndex(function (pending_tx) {
+      /* find the tx that was sent by the same account and referencing the same pixels than the one given */
+      return tx_info.owner === pending_tx.caller && indexes.length === pending_tx.pixels.length && indexes.every(function (i) {
         return pending_tx.pixels.find(function (p) {
           return p.index === i;
         });
-      }));
+      });
     });
   };
 
   return {
     to_sorted_event: to_sorted_event,
-    remaining_txs: remaining_txs
+    mined_tx_index: mined_tx_index
   };
 }();
 
