@@ -123,10 +123,12 @@ var process_pixel_solds = function process_pixel_solds(pixel_solds) {
   update_cache();
   pusher.trigger('main', 'new_block', { new_block: current_block });
   console.log('New block pushed');
-  Object.keys(pusher_events).forEach(function (tx_hash) {
-    pusher.trigger('main', 'new_tx', pusher_events[tx_hash]);
+  var tx_hashes = Object.keys(pusher_events);
+  tx_hashes.forEach(function (tx_hash) {
+    pusher.trigger(['main', pusher_events[tx_hash].owner], 'mined_tx', pusher_events[tx_hash]);
     console.log("Transaction pushed: " + tx_hash);
   });
+  return tx_hashes;
 };
 
 var update_pixel = function update_pixel(log) {
@@ -145,8 +147,9 @@ var update_buffer = function update_buffer(log) {
   address_buffer.fill(entry, offset, offset + buffer_entry_size, 'hex');
 };
 
-var pixel_sold_handler = function pixel_sold_handler(error, result) {
-  if (error) console.error(error);else process_pixel_solds(result);
+var pixel_sold_handler = function pixel_sold_handler(start, end, result) {
+  var mined_txs = process_pixel_solds(result);
+  process_past_fails(start, end, mined_txs);
 };
 
 var store_new_index = function store_new_index(b_number) {
@@ -175,22 +178,53 @@ var resize_assets = function resize_assets(old_i) {
 };
 
 var start_watching = function start_watching() {
-  process_past_logs(last_cache_block);
+  process_past_logs(last_cache_block, current_block);
 
   web3.eth.filter("latest").watch(function (error, block_hash) {
-    web3.eth.getBlock(block_hash, function (error, result) {
-      if (error) console.error(error);else if (result.number > current_block) {
-        var last_processed_block = current_block;
-        process_new_block(result.number);
-        process_past_logs(last_processed_block);
+    web3.eth.getBlock(block_hash, true, function (error, result) {
+      if (error) console.error(error);else {
+        var safe_number = result.number - process.env.CONFIRMATIONS_NEEDED;
+        if (safe_number > current_block) {
+          var last_processed_block = current_block;
+          process_new_block(safe_number);
+          process_past_logs(last_processed_block + 1, safe_number);
+        }
       }
     });
   });
 };
 
-var process_past_logs = function process_past_logs(last_processed_block) {
-  console.log("Fetching events from " + (last_processed_block + 1) + " to " + current_block);
-  instance.PixelPainted({}, { fromBlock: last_processed_block + 1, toBlock: current_block }).get(pixel_sold_handler);
+var fetch_block_and_txs = function fetch_block_and_txs(bn) {
+  return new Promise(function (resolve) {
+    console.log("Fetching txs from block " + bn + "...");
+    web3.eth.getBlock(bn, true, function (_, block) {
+      return resolve(block);
+    });
+  });
+};
+
+/* fetching some blocks behind to make sure I don't get null, related issue: https://github.com/INFURA/infura/issues/43 */
+async function process_past_fails(start, end, mined_txs) {
+  if (end - start > 10) return;
+  console.log("Fetching fails from " + start + " to " + end);
+  for (var bn = start; bn <= end; bn++) {
+    var block = await fetch_block_and_txs(bn);
+    block.transactions.forEach(function (tx) {
+      if (instance.address === tx.to)
+        /* not mined transaction present in block => fail */
+        if (!mined_txs.includes(tx.hash)) {
+          pusher.trigger(tx.from, 'failed_tx', { hash: tx.hash, gas: tx.gas });
+          console.log("Failed transaction pushed: " + tx.hash);
+        }
+    });
+  }
+}
+
+var process_past_logs = function process_past_logs(start, end) {
+  console.log("Fetching events from " + start + " to " + end);
+  instance.PixelPainted({}, { fromBlock: start, toBlock: end }).get(function (_, result) {
+    return pixel_sold_handler(start, end, result);
+  });
 };
 
 var reset_cache = function reset_cache(b_number) {
@@ -258,9 +292,10 @@ canvasContract.deployed().then(function (contract_instance) {
       console.log('Fetching current block...');
       web3.eth.getBlockNumber(function (error, b_number) {
         if (error) throw error;else {
-          if (matching_contract) fetch_pixels(b_number);else {
+          var safe_number = b_number - process.env.CONFIRMATIONS_NEEDED;
+          if (matching_contract) fetch_pixels(safe_number);else {
             console.log('Last cache files point to older contract version, resetting cache...');
-            reset_cache(b_number);
+            reset_cache(safe_number);
           }
           setInterval(function () {
             console.log("Listening for events...");

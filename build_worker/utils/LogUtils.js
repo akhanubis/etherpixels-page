@@ -21,9 +21,9 @@ var LogUtils = function () {
     var indexes = tx_info.pixels.map(function (p) {
       return p.i;
     });
+    /* find the tx that was sent referencing the same pixels than the one given */
     return pending_txs.findIndex(function (pending_tx) {
-      /* find the tx that was sent by the same account and referencing the same pixels than the one given */
-      return tx_info.owner === pending_tx.caller && indexes.length === pending_tx.pixels.length && indexes.every(function (i) {
+      return indexes.length === pending_tx.pixels.length && indexes.every(function (i) {
         return pending_tx.pixels.find(function (p) {
           return p.index === i;
         });
@@ -31,9 +31,16 @@ var LogUtils = function () {
     });
   };
 
+  var matching_tx_with_gas_index = function matching_tx_with_gas_index(pending_txs, tx_info) {
+    return pending_txs.findIndex(function (pending_tx) {
+      return pending_tx.gas === tx_info.gas;
+    });
+  };
+
   return {
     to_sorted_event: to_sorted_event,
-    mined_tx_index: mined_tx_index
+    mined_tx_index: mined_tx_index,
+    matching_tx_with_gas_index: matching_tx_with_gas_index
   };
 }();
 
