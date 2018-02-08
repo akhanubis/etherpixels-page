@@ -71,7 +71,7 @@ var CanvasUtils = function () {
       new_context.drawImage(old_ctx.canvas, offset_w, offset_h);
     }
     for (var i = old_max_index; i < new_max_index; i++) {
-      var world_coords = new _ContractToWorld2.default(i + 1).get_coords();
+      var world_coords = _ContractToWorld2.default.index_to_coords(i + 1);
       var buffer_coords = _WorldToCanvas2.default.to_buffer(world_coords.x, world_coords.y, new_size);
       new_context.putImageData(i_data_for_new_pixel, buffer_coords.x, buffer_coords.y);
     }

@@ -132,7 +132,7 @@ var process_pixel_solds = function process_pixel_solds(pixel_solds) {
 };
 
 var update_pixel = function update_pixel(log) {
-  var world_coords = new _ContractToWorld2.default(log.args.i.toNumber()).get_coords();
+  var world_coords = _ContractToWorld2.default.index_to_coords(log.args.i.toNumber());
   var canvas_coords = _WorldToCanvas2.default.to_buffer(world_coords.x, world_coords.y, { width: canvas_dimension, height: canvas_dimension });
   var pixel_array = new Uint8ClampedArray(_ColorUtils2.default.bytes3ToIntArray(log.args.new_color));
   var image_data = new Canvas.ImageData(pixel_array, 1, 1);
@@ -155,7 +155,7 @@ var pixel_sold_handler = function pixel_sold_handler(start, end, result) {
 var store_new_index = function store_new_index(b_number) {
   var old_index = max_index;
   current_block = b_number;
-  max_index = _ContractToWorld2.default.max_index(genesis_block, current_block);
+  max_index = _ContractToWorld2.default.max_index(current_block);
   canvas_dimension = _ContractToWorld2.default.canvas_dimension(max_index);
   return old_index;
 };
@@ -246,7 +246,7 @@ var continue_cache = function continue_cache(b_number, pixels_data, buffer_data)
   pixel_buffer_ctx.drawImage(img, 0, 0);
   /* init the buffer with the last cached buffer */
   address_buffer = zlib.inflateRawSync(buffer_data);
-  max_index = _ContractToWorld2.default.max_index(genesis_block, last_cache_block); /* temp set mat_index to old_index to set old_index to the right value */
+  max_index = _ContractToWorld2.default.max_index(last_cache_block); /* temp set mat_index to old_index to set old_index to the right value */
   var old_index = store_new_index(b_number);
   resize_assets(old_index);
   start_watching();
@@ -280,27 +280,31 @@ canvasContract.deployed().then(function (contract_instance) {
   console.log("Contract deployed\nFetching genesis block...");
   instance.GenesisBlock.call().then(function (g_block) {
     genesis_block = g_block;
-    console.log("Genesis block: " + g_block + "\nFetching init.json...");
-    s3.getObject({ Bucket: bucket, Key: init_key }, function (error, data) {
-      if (error) console.log('File init.json not found');else {
-        var json_data = JSON.parse(data.Body.toString());
-        last_cache_block = json_data.last_cache_block;
-        console.log("Last block cached: " + last_cache_block);
-        var cache_address = json_data.contract_address;
-        matching_contract = cache_address === instance.address;
-      }
-      console.log('Fetching current block...');
-      web3.eth.getBlockNumber(function (error, b_number) {
-        if (error) throw error;else {
-          var safe_number = b_number - process.env.CONFIRMATIONS_NEEDED;
-          if (matching_contract) fetch_pixels(safe_number);else {
-            console.log('Last cache files point to older contract version, resetting cache...');
-            reset_cache(safe_number);
-          }
-          setInterval(function () {
-            console.log("Listening for events...");
-          }, 60000);
+    console.log("Genesis block: " + g_block + "\nFetching halving array...");
+    instance.HalvingArray.call().then(function (halving_array) {
+      _ContractToWorld2.default.init(g_block, halving_array);
+      console.log("Halving array: " + halving_array + "\nFetching init.json...");
+      s3.getObject({ Bucket: bucket, Key: init_key }, function (error, data) {
+        if (error) console.log('File init.json not found');else {
+          var json_data = JSON.parse(data.Body.toString());
+          last_cache_block = json_data.last_cache_block;
+          console.log("Last block cached: " + last_cache_block);
+          var cache_address = json_data.contract_address;
+          matching_contract = cache_address === instance.address;
         }
+        console.log('Fetching current block...');
+        web3.eth.getBlockNumber(function (error, b_number) {
+          if (error) throw error;else {
+            var safe_number = b_number - process.env.CONFIRMATIONS_NEEDED;
+            if (matching_contract) fetch_pixels(safe_number);else {
+              console.log('Last cache files point to older contract version, resetting cache...');
+              reset_cache(safe_number);
+            }
+            setInterval(function () {
+              console.log("Listening for events...");
+            }, 60000);
+          }
+        });
       });
     });
   });
