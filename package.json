@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start_canvas_updater_prod": "set NODE_ENV=production&&set FILE_DIR=build_webpack&&node build_worker/canvas_updater.js"
+    "start_canvas_updater_prod": "node build_worker/canvas_updater.js",
+    "send_server_message": "node build_scripts/push_alert.js"
   },
   "repository": {
     "type": "git",
@@ -23,17 +24,16 @@
   "homepage": "https://github.com/akhanubis/fictional-chainsaw-page#readme",
   "devDependencies": {
     "truffle-contract": "^1.1.8",
-    "truffle-solidity-loader": "0.0.8"
-  },
-  "dependencies": {
+    "truffle-solidity-loader": "0.0.8",
     "aws-sdk": "^2.183.0",
     "canvas": "^1.6.9",
-    "dotenv": "^4.0.0",
-    "express": "^4.16.2",
     "left-pad": "^1.2.0",
-    "newrelic": "^2.6.0",
     "pusher": "^1.5.1",
-    "truffle-contract": "^1.1.8",
-    "truffle-solidity-loader": "0.0.8"
+    "dotenv": "^4.0.0"
+  },
+  "dependencies": {
+    "express": "^4.16.2",
+    "newrelic": "^2.6.0",
+    "minimist": "^1.2.0"
   }
 }
