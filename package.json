@@ -1,8 +1,6 @@
 {
-  "name": "ethpaint",
   "version": "0.0.1",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "start_canvas_updater": "node build_worker/canvas_updater.js",
     "send_server_message": "node build_scripts/push_alert.js"
@@ -19,8 +17,7 @@
   "bugs": {
     "url": "https://github.com/akhanubis/fictional-chainsaw-page/issues"
   },
-  "homepage": "https://github.com/akhanubis/fictional-chainsaw-page#readme",
-  "devDependencies": {
+  "dependencies": {
     "truffle-contract": "^1.1.8",
     "truffle-solidity-loader": "0.0.8",
     "aws-sdk": "^2.183.0",
@@ -28,8 +25,5 @@
     "left-pad": "^1.2.0",
     "pusher": "^1.5.1",
     "dotenv": "^4.0.0"
-  },
-  "dependencies": {
-    "minimist": "^1.2.0"
   }
 }
