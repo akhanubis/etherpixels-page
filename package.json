@@ -4,8 +4,6 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node app.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start_canvas_updater_prod": "node build_worker/canvas_updater.js",
     "send_server_message": "node build_scripts/push_alert.js"
   },
@@ -32,9 +30,6 @@
     "dotenv": "^4.0.0"
   },
   "dependencies": {
-    "eth-sig-util": "^1.4.2",
-    "express": "^4.16.2",
-    "minimist": "^1.2.0",
-    "newrelic": "^2.6.0"
+    "minimist": "^1.2.0"
   }
 }
