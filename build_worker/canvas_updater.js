@@ -30,7 +30,7 @@ var _LogUtils2 = _interopRequireDefault(_LogUtils);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-require('dotenv').config({ silent: true });
+require('dotenv').config({ silent: true, path: process.env.ENV_PATH });
 
 var fs = require('fs');
 var zlib = require('zlib');
@@ -58,13 +58,13 @@ var max_index = null;
 var web3 = null;
 var instance = null;
 var pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID || process.env.REACT_APP_PUSHER_APP_ID,
-  key: process.env.PUSHER_APP_KEY || process.env.REACT_APP_PUSHER_APP_KEY,
-  secret: process.env.PUSHER_APP_SECRET || process.env.REACT_APP_PUSHER_APP_SECRET,
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_APP_KEY,
+  secret: process.env.PUSHER_APP_SECRET,
   encrypted: true
 });
 
-var bucket = process.env.REACT_APP_S3_BUCKET;
+var bucket = process.env.S3_BUCKET;
 var pixels_key = 'pixels.png';
 var buffer_key = 'addresses.buf';
 var init_key = 'init.json';
@@ -82,7 +82,7 @@ var get_web3 = function get_web3() {
         web3_clientVersion: 'ZeroClientProvider'
       },
       pollingInterval: 99999999, // not interested in polling for new blocks
-      rpcUrl: "https://ropsten.infura.io/" + process.env.REACT_APP_INFURA_API_KEY,
+      rpcUrl: "https://ropsten.infura.io/" + process.env.INFURA_API_KEY,
       getAccounts: function getAccounts(cb) {
         return cb(null, []);
       }

@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start_canvas_updater_prod": "node build_worker/canvas_updater.js",
+    "start_canvas_updater": "node build_worker/canvas_updater.js",
     "send_server_message": "node build_scripts/push_alert.js"
   },
   "repository": {
