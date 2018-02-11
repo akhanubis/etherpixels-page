@@ -4,25 +4,15 @@
     {
       "constant": true,
       "inputs": [],
-      "name": "HalvingArray",
-      "outputs": [
-        {
-          "name": "halving_array",
-          "type": "uint256[]"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [],
-      "name": "GenesisBlock",
+      "name": "HalvingInfo",
       "outputs": [
         {
           "name": "genesis_block",
           "type": "uint256"
+        },
+        {
+          "name": "halving_array",
+          "type": "uint256[]"
         }
       ],
       "payable": false,
@@ -40,14 +30,14 @@
   "deployedBytecode": "0x",
   "sourceMap": "",
   "deployedSourceMap": "",
-  "source": "pragma solidity ^0.4.18;\r\n\r\ncontract usingCanvasBoundaries {\r\n  uint private g_block;\r\n  uint private max_max_index;\r\n  uint private max_block_number;\r\n  uint[] private halving;\r\n\t \r\n  function usingCanvasBoundaries() internal {\r\n    g_block = block.number;\r\n    max_max_index = 4198401;\r\n    max_block_number = g_block + 3330049;\r\n    halving = [g_block + 16384, g_block + 81920, g_block + 770048];\r\n  }\r\n\r\n\tfunction max_index() internal view returns(uint m_index) {\r\n    if (block.number > max_block_number)\r\n      return max_max_index;\r\n    uint delta = block.number - g_block;\r\n    return delta +\r\n    ((block.number <= halving[0]) ? delta : halving[0] - g_block) +\r\n    ((block.number <= halving[1]) ? delta : halving[1] - g_block) +\r\n    ((block.number <= halving[2]) ? delta : halving[2] - g_block);\r\n  }\r\n\r\n  function GenesisBlock() public view returns(uint genesis_block) {\r\n    return g_block;\r\n  }\r\n\r\n  function HalvingArray() public view returns(uint[] halving_array) {\r\n    return halving;\r\n  }\r\n}",
+  "source": "pragma solidity ^0.4.18;\r\n\r\ncontract usingCanvasBoundaries {\r\n  uint private g_block;\r\n  uint private max_max_index;\r\n  uint private max_block_number;\r\n  uint[] private halving;\r\n\t \r\n  function usingCanvasBoundaries() internal {\r\n    g_block = block.number;\r\n    max_max_index = 4198401;\r\n    max_block_number = g_block + 3330049;\r\n    halving = [g_block + 16384, g_block + 81920, g_block + 770048];\r\n  }\r\n\r\n\tfunction max_index() internal view returns(uint m_index) {\r\n    if (block.number > max_block_number)\r\n      return max_max_index;\r\n    uint delta = block.number - g_block;\r\n    return delta +\r\n    ((block.number <= halving[0]) ? delta : halving[0] - g_block) +\r\n    ((block.number <= halving[1]) ? delta : halving[1] - g_block) +\r\n    ((block.number <= halving[2]) ? delta : halving[2] - g_block);\r\n  }\r\n\r\n  function HalvingInfo() public view returns(uint genesis_block, uint[] halving_array) {\r\n    return (g_block, halving);\r\n  }\r\n}",
   "sourcePath": "D:\\dev\\canvas\\contracts\\UsingCanvasBoundaries.sol",
   "ast": {
     "attributes": {
       "absolutePath": "/D/dev/canvas/contracts/UsingCanvasBoundaries.sol",
       "exportedSymbols": {
         "usingCanvasBoundaries": [
-          350
+          346
         ]
       }
     },
@@ -77,17 +67,17 @@
           "documentation": null,
           "fullyImplemented": true,
           "linearizedBaseContracts": [
-            350
+            346
           ],
           "name": "usingCanvasBoundaries",
-          "scope": 351
+          "scope": 347
         },
         "children": [
           {
             "attributes": {
               "constant": false,
               "name": "g_block",
-              "scope": 350,
+              "scope": 346,
               "stateVariable": true,
               "storageLocation": "default",
               "type": "uint256",
@@ -113,7 +103,7 @@
             "attributes": {
               "constant": false,
               "name": "max_max_index",
-              "scope": 350,
+              "scope": 346,
               "stateVariable": true,
               "storageLocation": "default",
               "type": "uint256",
@@ -139,7 +129,7 @@
             "attributes": {
               "constant": false,
               "name": "max_block_number",
-              "scope": 350,
+              "scope": 346,
               "stateVariable": true,
               "storageLocation": "default",
               "type": "uint256",
@@ -165,7 +155,7 @@
             "attributes": {
               "constant": false,
               "name": "halving",
-              "scope": 350,
+              "scope": 346,
               "stateVariable": true,
               "storageLocation": "default",
               "type": "uint256[] storage ref",
@@ -208,7 +198,7 @@
               ],
               "name": "usingCanvasBoundaries",
               "payable": false,
-              "scope": 350,
+              "scope": 346,
               "stateMutability": "nonpayable",
               "superFunction": null,
               "visibility": "internal"
@@ -283,7 +273,7 @@
                                   "overloadedDeclarations": [
                                     null
                                   ],
-                                  "referencedDeclaration": 412,
+                                  "referencedDeclaration": 408,
                                   "type": "block",
                                   "value": "block"
                                 },
@@ -674,7 +664,7 @@
               ],
               "name": "max_index",
               "payable": false,
-              "scope": 350,
+              "scope": 346,
               "stateMutability": "view",
               "superFunction": null,
               "visibility": "internal"
@@ -764,7 +754,7 @@
                                   "overloadedDeclarations": [
                                     null
                                   ],
-                                  "referencedDeclaration": 412,
+                                  "referencedDeclaration": 408,
                                   "type": "block",
                                   "value": "block"
                                 },
@@ -891,7 +881,7 @@
                                   "overloadedDeclarations": [
                                     null
                                   ],
-                                  "referencedDeclaration": 412,
+                                  "referencedDeclaration": 408,
                                   "type": "block",
                                   "value": "block"
                                 },
@@ -1057,7 +1047,7 @@
                                                           "overloadedDeclarations": [
                                                             null
                                                           ],
-                                                          "referencedDeclaration": 412,
+                                                          "referencedDeclaration": 408,
                                                           "type": "block",
                                                           "value": "block"
                                                         },
@@ -1300,7 +1290,7 @@
                                                       "overloadedDeclarations": [
                                                         null
                                                       ],
-                                                      "referencedDeclaration": 412,
+                                                      "referencedDeclaration": 408,
                                                       "type": "block",
                                                       "value": "block"
                                                     },
@@ -1543,7 +1533,7 @@
                                                   "overloadedDeclarations": [
                                                     null
                                                   ],
-                                                  "referencedDeclaration": 412,
+                                                  "referencedDeclaration": 408,
                                                   "type": "block",
                                                   "value": "block"
                                                 },
@@ -1744,9 +1734,9 @@
               "modifiers": [
                 null
               ],
-              "name": "GenesisBlock",
+              "name": "HalvingInfo",
               "payable": false,
-              "scope": 350,
+              "scope": 346,
               "stateMutability": "view",
               "superFunction": null,
               "visibility": "public"
@@ -1761,7 +1751,7 @@
                 "children": [],
                 "id": 333,
                 "name": "ParameterList",
-                "src": "838:2:2"
+                "src": "837:2:2"
               },
               {
                 "children": [
@@ -1769,7 +1759,7 @@
                     "attributes": {
                       "constant": false,
                       "name": "genesis_block",
-                      "scope": 340,
+                      "scope": 345,
                       "stateVariable": false,
                       "storageLocation": "default",
                       "type": "uint256",
@@ -1784,88 +1774,18 @@
                         },
                         "id": 334,
                         "name": "ElementaryTypeName",
-                        "src": "861:4:2"
+                        "src": "860:4:2"
                       }
                     ],
                     "id": 335,
                     "name": "VariableDeclaration",
-                    "src": "861:18:2"
-                  }
-                ],
-                "id": 336,
-                "name": "ParameterList",
-                "src": "860:20:2"
-              },
-              {
-                "children": [
-                  {
-                    "attributes": {
-                      "functionReturnParameters": 336
-                    },
-                    "children": [
-                      {
-                        "attributes": {
-                          "argumentTypes": null,
-                          "overloadedDeclarations": [
-                            null
-                          ],
-                          "referencedDeclaration": 223,
-                          "type": "uint256",
-                          "value": "g_block"
-                        },
-                        "id": 337,
-                        "name": "Identifier",
-                        "src": "895:7:2"
-                      }
-                    ],
-                    "id": 338,
-                    "name": "Return",
-                    "src": "888:14:2"
-                  }
-                ],
-                "id": 339,
-                "name": "Block",
-                "src": "881:27:2"
-              }
-            ],
-            "id": 340,
-            "name": "FunctionDefinition",
-            "src": "817:91:2"
-          },
-          {
-            "attributes": {
-              "constant": true,
-              "implemented": true,
-              "isConstructor": false,
-              "modifiers": [
-                null
-              ],
-              "name": "HalvingArray",
-              "payable": false,
-              "scope": 350,
-              "stateMutability": "view",
-              "superFunction": null,
-              "visibility": "public"
-            },
-            "children": [
-              {
-                "attributes": {
-                  "parameters": [
-                    null
-                  ]
-                },
-                "children": [],
-                "id": 341,
-                "name": "ParameterList",
-                "src": "935:2:2"
-              },
-              {
-                "children": [
+                    "src": "860:18:2"
+                  },
                   {
                     "attributes": {
                       "constant": false,
                       "name": "halving_array",
-                      "scope": 349,
+                      "scope": 345,
                       "stateVariable": false,
                       "storageLocation": "default",
                       "type": "uint256[] memory",
@@ -1884,70 +1804,100 @@
                               "name": "uint",
                               "type": "uint256"
                             },
-                            "id": 342,
+                            "id": 336,
                             "name": "ElementaryTypeName",
-                            "src": "958:4:2"
+                            "src": "880:4:2"
                           }
                         ],
-                        "id": 343,
+                        "id": 337,
                         "name": "ArrayTypeName",
-                        "src": "958:6:2"
+                        "src": "880:6:2"
                       }
                     ],
-                    "id": 344,
+                    "id": 338,
                     "name": "VariableDeclaration",
-                    "src": "958:20:2"
+                    "src": "880:20:2"
                   }
                 ],
-                "id": 345,
+                "id": 339,
                 "name": "ParameterList",
-                "src": "957:22:2"
+                "src": "859:42:2"
               },
               {
                 "children": [
                   {
                     "attributes": {
-                      "functionReturnParameters": 345
+                      "functionReturnParameters": 339
                     },
                     "children": [
                       {
                         "attributes": {
                           "argumentTypes": null,
-                          "overloadedDeclarations": [
-                            null
-                          ],
-                          "referencedDeclaration": 230,
-                          "type": "uint256[] storage ref",
-                          "value": "halving"
+                          "isConstant": false,
+                          "isInlineArray": false,
+                          "isLValue": false,
+                          "isPure": false,
+                          "lValueRequested": false,
+                          "type": "tuple(uint256,uint256[] storage ref)"
                         },
-                        "id": 346,
-                        "name": "Identifier",
-                        "src": "994:7:2"
+                        "children": [
+                          {
+                            "attributes": {
+                              "argumentTypes": null,
+                              "overloadedDeclarations": [
+                                null
+                              ],
+                              "referencedDeclaration": 223,
+                              "type": "uint256",
+                              "value": "g_block"
+                            },
+                            "id": 340,
+                            "name": "Identifier",
+                            "src": "917:7:2"
+                          },
+                          {
+                            "attributes": {
+                              "argumentTypes": null,
+                              "overloadedDeclarations": [
+                                null
+                              ],
+                              "referencedDeclaration": 230,
+                              "type": "uint256[] storage ref",
+                              "value": "halving"
+                            },
+                            "id": 341,
+                            "name": "Identifier",
+                            "src": "926:7:2"
+                          }
+                        ],
+                        "id": 342,
+                        "name": "TupleExpression",
+                        "src": "916:18:2"
                       }
                     ],
-                    "id": 347,
+                    "id": 343,
                     "name": "Return",
-                    "src": "987:14:2"
+                    "src": "909:25:2"
                   }
                 ],
-                "id": 348,
+                "id": 344,
                 "name": "Block",
-                "src": "980:27:2"
+                "src": "902:38:2"
               }
             ],
-            "id": 349,
+            "id": 345,
             "name": "FunctionDefinition",
-            "src": "914:93:2"
+            "src": "817:123:2"
           }
         ],
-        "id": 350,
+        "id": 346,
         "name": "ContractDefinition",
-        "src": "28:982:2"
+        "src": "28:915:2"
       }
     ],
-    "id": 351,
+    "id": 347,
     "name": "SourceUnit",
-    "src": "0:1010:2"
+    "src": "0:943:2"
   },
   "compiler": {
     "name": "solc",
@@ -1955,5 +1905,5 @@
   },
   "networks": {},
   "schemaVersion": "1.0.1",
-  "updatedAt": "2018-02-09T07:57:52.090Z"
+  "updatedAt": "2018-02-11T18:21:41.837Z"
 }

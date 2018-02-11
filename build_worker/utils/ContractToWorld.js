@@ -15,9 +15,11 @@ var ContractToWorld = function () {
 
   _createClass(ContractToWorld, null, [{
     key: "init",
-    value: function init(g_block, h_array) {
-      this.genesis_block = g_block;
-      this.halving_array = h_array;
+    value: function init(h_array) {
+      this.genesis_block = h_array[0].toNumber();
+      this.halving_array = h_array[1].map(function (n) {
+        return n.toNumber();
+      });
     }
   }, {
     key: "index_to_coords",
