@@ -1,5 +1,7 @@
 "use strict";
 
+var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
 var _Canvas = require("../build/contracts/Canvas.json");
 
 var _Canvas2 = _interopRequireDefault(_Canvas);
@@ -110,25 +112,7 @@ var process_new_block = function process_new_block(b_number) {
   var old_dimension = canvas_dimension;
   var old_index = store_new_index(b_number);
   resize_assets(old_index);
-};
-
-var process_pixel_solds = function process_pixel_solds(pixel_solds) {
-  console.log("Processing " + pixel_solds.length + " pixel" + (pixel_solds.length == 1 ? '' : 's'));
-  var pusher_events = {};
-  pixel_solds.forEach(function (log) {
-    update_pixel(log);
-    update_buffer(log);
-    _LogUtils2.default.to_sorted_event(pusher_events, log);
-  });
-  update_cache();
-  pusher.trigger('main', 'new_block', { new_block: current_block });
-  console.log('New block pushed');
-  var tx_hashes = Object.keys(pusher_events);
-  tx_hashes.forEach(function (tx_hash) {
-    pusher.trigger(['main', pusher_events[tx_hash].owner], 'mined_tx', pusher_events[tx_hash]);
-    console.log("Transaction pushed: " + tx_hash);
-  });
-  return tx_hashes;
+  pusher.trigger('main', 'new_block', { new_block: b_number });
 };
 
 var update_pixel = function update_pixel(log) {
@@ -145,11 +129,6 @@ var update_buffer = function update_buffer(log) {
   var formatted_locked_until = left_pad(log.args.locked_until.toString(16), 8, 0);
   var entry = formatted_address + formatted_locked_until;
   address_buffer.fill(entry, offset, offset + buffer_entry_size, 'hex');
-};
-
-var pixel_sold_handler = function pixel_sold_handler(start, end, result) {
-  var mined_txs = process_pixel_solds(result);
-  process_past_fails(start, end, mined_txs);
 };
 
 var store_new_index = function store_new_index(b_number) {
@@ -181,7 +160,7 @@ var start_watching = function start_watching() {
   process_past_logs(last_cache_block, current_block);
 
   web3.eth.filter("latest").watch(function (error, block_hash) {
-    web3.eth.getBlock(block_hash, true, function (error, result) {
+    web3.eth.getBlock(block_hash, false, function (error, result) {
       if (error) console.error(error);else {
         var safe_number = result.number - process.env.CONFIRMATIONS_NEEDED;
         if (safe_number > current_block) {
@@ -194,36 +173,37 @@ var start_watching = function start_watching() {
   });
 };
 
-var fetch_block_and_txs = function fetch_block_and_txs(bn) {
+var fetch_events = function fetch_events(event, start, end) {
   return new Promise(function (resolve) {
-    console.log("Fetching txs from block " + bn + "...");
-    web3.eth.getBlock(bn, true, function (_, block) {
-      return resolve(block);
+    console.log("Fetching " + event + " logs from " + start + " to " + end);
+    instance[event]({}, { fromBlock: start, toBlock: end }).get(function (_, result) {
+      return resolve(result);
     });
   });
 };
 
-/* fetching some blocks behind to make sure I don't get null, related issue: https://github.com/INFURA/infura/issues/43 */
-async function process_past_fails(start, end, mined_txs) {
-  if (end - start > 10) return;
-  console.log("Fetching fails from " + start + " to " + end);
-  for (var bn = start; bn <= end; bn++) {
-    var block = await fetch_block_and_txs(bn);
-    block.transactions.forEach(function (tx) {
-      if (instance.address === tx.to)
-        /* not mined transaction present in block => fail */
-        if (!mined_txs.includes(tx.hash)) {
-          pusher.trigger(tx.from, 'failed_tx', { hash: tx.hash, owner: tx.from, gas: tx.gas });
-          console.log("Failed transaction pushed: " + tx.hash);
-        }
-    });
-  }
-}
-
 var process_past_logs = function process_past_logs(start, end) {
-  console.log("Fetching events from " + start + " to " + end);
-  instance.PixelPainted({}, { fromBlock: start, toBlock: end }).get(function (_, result) {
-    return pixel_sold_handler(start, end, result);
+  Promise.all([fetch_events('PixelPainted', start, end), fetch_events('PixelUnavailable', start, end)]).then(function (values) {
+    var txs = {};
+    console.log("Processing " + values[0].length + " PixelPainted event" + (values[0].length == 1 ? '' : 's'));
+    values[0].forEach(function (l) {
+      update_pixel(l);
+      update_buffer(l);
+      _LogUtils2.default.to_sorted_event(txs, l);
+    });
+    update_cache();
+    console.log("Processing " + values[1].length + " PixelUnavailable event" + (values[1].length == 1 ? '' : 's'));
+    values[1].forEach(function (l) {
+      return _LogUtils2.default.to_sorted_event(txs, l);
+    });
+    Object.entries(txs).forEach(function (_ref) {
+      var _ref2 = _slicedToArray(_ref, 2),
+          tx_hash = _ref2[0],
+          tx_info = _ref2[1];
+
+      pusher.trigger(['main', tx_info.owner], 'mined_tx', tx_info);
+      console.log("Tx pushed: " + tx_hash);
+    });
   });
 };
 
