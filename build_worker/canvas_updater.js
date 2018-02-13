@@ -201,7 +201,7 @@ var process_past_logs = function process_past_logs(start, end) {
           tx_hash = _ref2[0],
           tx_info = _ref2[1];
 
-      pusher.trigger(['main', tx_info.owner], 'mined_tx', tx_info);
+      pusher.trigger('main', 'mined_tx', tx_info);
       console.log("Tx pushed: " + tx_hash);
     });
   });
