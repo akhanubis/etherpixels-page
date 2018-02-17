@@ -34,12 +34,20 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 require('dotenv').config({ silent: true, path: process.env.ENV_PATH });
 
+process.on('warning', function (e) {
+  return console.warn(e.stack);
+});
+
 var fs = require('fs');
 var zlib = require('zlib');
 var Canvas = require('canvas');
 var left_pad = require('left-pad');
+
 var ProviderEngine = require('web3-provider-engine');
-var ZeroClientProvider = require('web3-provider-engine/zero.js');
+var CacheSubprovider = require('web3-provider-engine/subproviders/cache.js');
+var FilterSubprovider = require('web3-provider-engine/subproviders/filters.js');
+var RpcSubprovider = require('web3-provider-engine/subproviders/rpc.js');
+
 var contract = require('truffle-contract');
 var canvasContract = contract(_Canvas2.default);
 var Pusher = require('pusher');
@@ -78,16 +86,22 @@ var get_web3 = function get_web3() {
     provider = new _web2.default.providers.HttpProvider('http://127.0.0.1:9545');
   } else {
     console.log('Using Infura');
-    provider = ZeroClientProvider({
-      static: {
-        eth_syncing: false,
-        web3_clientVersion: 'ZeroClientProvider'
-      },
-      pollingInterval: 99999999, // not interested in polling for new blocks
-      rpcUrl: "https://" + process.env.INFURA_NETWORK + ".infura.io/" + process.env.INFURA_API_KEY,
-      getAccounts: function getAccounts(cb) {
-        return cb(null, []);
-      }
+    provider = new ProviderEngine();
+    provider.addProvider(new CacheSubprovider());
+    provider.addProvider(new FilterSubprovider());
+    provider.addProvider(new RpcSubprovider({
+      rpcUrl: "https://" + process.env.INFURA_NETWORK + ".infura.io/" + process.env.INFURA_API_KEY
+    }));
+    provider.on('block', function (block) {
+      console.log('================================');
+      console.log('BLOCK CHANGED:', '#' + block.number.toString('hex'), '0x' + block.hash.toString('hex'));
+      console.log('================================');
+    });
+
+    // network connectivity error
+    provider.on('error', function (err) {
+      // report connectivity errors
+      console.error(err.stack);
     });
     provider.start();
   }
