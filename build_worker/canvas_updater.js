@@ -6,10 +6,6 @@ var _Canvas = require("../build/contracts/Canvas.json");
 
 var _Canvas2 = _interopRequireDefault(_Canvas);
 
-var _web = require("web3");
-
-var _web2 = _interopRequireDefault(_web);
-
 var _ColorUtils = require("./utils/ColorUtils.js");
 
 var _ColorUtils2 = _interopRequireDefault(_ColorUtils);
@@ -32,40 +28,39 @@ var _LogUtils2 = _interopRequireDefault(_LogUtils);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+require('http').globalAgent.maxSockets = require('https').globalAgent.maxSockets = 20;
 require('dotenv').config({ silent: true, path: process.env.ENV_PATH });
 
 process.on('warning', function (e) {
   return console.warn(e.stack);
 });
 
-var fs = require('fs');
 var zlib = require('zlib');
 var Canvas = require('canvas');
 var left_pad = require('left-pad');
 
 var ProviderEngine = require('web3-provider-engine');
-var CacheSubprovider = require('web3-provider-engine/subproviders/cache.js');
 var FilterSubprovider = require('web3-provider-engine/subproviders/filters.js');
 var RpcSubprovider = require('web3-provider-engine/subproviders/rpc.js');
 
-var contract = require('truffle-contract');
-var canvasContract = contract(_Canvas2.default);
+var canvasContract = require('truffle-contract')(_Canvas2.default);
 var Pusher = require('pusher');
 var AWS = require('aws-sdk');
 var s3 = new AWS.S3();
+
 var buffer_entry_size = 32; /* 20 bytes for address, 12 bytes for locked_until */
-var free_pixel_buffer = Buffer.allocUnsafe(buffer_entry_size).fill('0000000000000000000000000000000000000000000000000000048c27395000', 'hex'); /* empty address and 5000000000000 starting price */
+var free_pixel_buffer_entry = '0000000000000000000000000000000000000000000000000000048c27395000'; /* empty address and 5000000000000 starting price */
 var new_pixel_image_data = _CanvasUtils2.default.semitrans_image_data(Canvas.ImageData);
 
 var canvas = null;
 var canvas_dimension = null;
 var pixel_buffer_ctx = null;
-var address_buffer = new Buffer(0);
+var address_buffer = Buffer.alloc(0);
 var last_cache_block = null;
 var current_block = null;
 var max_index = null;
-var web3 = null;
 var instance = null;
+var provider = null;
 var pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_APP_KEY,
@@ -79,37 +74,27 @@ var pixels_key = 'pixels.png';
 var buffer_key = 'addresses.buf';
 var init_key = 'init.json';
 
-var get_web3 = function get_web3() {
-  var provider = null;
+var init_provider = function init_provider() {
   if (process.env.NODE_ENV === 'development') {
     console.log('Using development web3');
-    provider = new _web2.default.providers.HttpProvider('http://127.0.0.1:9545');
+    var w = require('web3');
+    provider = new w.providers.HttpProvider('http://127.0.0.1:9545');
   } else {
     console.log('Using Infura');
     provider = new ProviderEngine();
-    provider.addProvider(new CacheSubprovider());
     provider.addProvider(new FilterSubprovider());
     provider.addProvider(new RpcSubprovider({
       rpcUrl: "https://" + process.env.INFURA_NETWORK + ".infura.io/" + process.env.INFURA_API_KEY
     }));
-    provider.on('block', function (block) {
-      console.log('================================');
-      console.log('BLOCK CHANGED:', '#' + block.number.toString('hex'), '0x' + block.hash.toString('hex'));
-      console.log('================================');
-    });
-
-    // network connectivity error
     provider.on('error', function (err) {
-      // report connectivity errors
-      console.error(err.stack);
+      return console.error(err.stack);
     });
     provider.start();
   }
-  return new _web2.default(provider);
 };
 
 var upload_callback = function upload_callback(err, data) {
-  if (err) console.log(err);else console.log("New " + data.key + ": " + data.ETag);
+  console.log(err ? err : "New " + data.key + ": " + data.ETag);
 };
 
 var update_cache = function update_cache() {
@@ -122,6 +107,7 @@ var update_cache = function update_cache() {
 };
 
 var process_new_block = function process_new_block(b_number) {
+  console.log('================================');
   console.log("New block: " + b_number);
   var old_dimension = canvas_dimension;
   var old_index = store_new_index(b_number);
@@ -156,12 +142,13 @@ var store_new_index = function store_new_index(b_number) {
 var resize_canvas = function resize_canvas(old_i) {
   console.log("Resizing canvas to: " + canvas_dimension + "x" + canvas_dimension + "...");
   canvas = new Canvas(canvas_dimension, canvas_dimension); /* pixel_buffer_ctx keeps a temp reference to old canvas */
-  pixel_buffer_ctx = _CanvasUtils2.default.resize_canvas(pixel_buffer_ctx, canvas, { width: canvas_dimension, height: canvas_dimension }, old_i, max_index, new_pixel_image_data);
+  pixel_buffer_ctx = _CanvasUtils2.default.resize_canvas(pixel_buffer_ctx, canvas, { width: canvas_dimension, height: canvas_dimension }, old_i, max_index, new_pixel_image_data).ctx;
 };
 
 var resize_buffer = function resize_buffer(old_i) {
-  console.log("Resizing buffer to: " + buffer_entry_size * (max_index + 1) + "...");
-  address_buffer = Buffer.concat([address_buffer, Buffer.allocUnsafe(buffer_entry_size * (max_index - old_i)).fill(free_pixel_buffer)], buffer_entry_size * (max_index + 1));
+  var new_length = buffer_entry_size * (max_index + 1);
+  console.log("Resizing buffer to: " + new_length + "...");
+  address_buffer = Buffer.concat([address_buffer, Buffer.allocUnsafeSlow(buffer_entry_size * (max_index - old_i)).fill(free_pixel_buffer_entry, 'hex')], new_length);
 };
 
 var resize_assets = function resize_assets(old_i) {
@@ -173,42 +160,35 @@ var resize_assets = function resize_assets(old_i) {
 var start_watching = function start_watching() {
   process_past_logs(last_cache_block, current_block);
 
-  web3.eth.filter("latest").watch(function (error, block_hash) {
-    web3.eth.getBlock(block_hash, false, function (error, result) {
-      if (error) console.error(error);else {
-        var safe_number = result.number - process.env.CONFIRMATIONS_NEEDED;
-        if (safe_number > current_block) {
-          var last_processed_block = current_block;
-          process_new_block(safe_number);
-          process_past_logs(last_processed_block + 1, safe_number);
-        }
+  setInterval(function () {
+    provider.sendAsync({
+      method: 'eth_blockNumber',
+      params: []
+    }, function (_, res) {
+      var safe_number = parseInt(res.result, 16) - process.env.CONFIRMATIONS_NEEDED;
+      if (safe_number > current_block) {
+        var last_processed_block = current_block;
+        process_new_block(safe_number);
+        process_past_logs(last_processed_block + 1, safe_number);
       }
     });
-  });
+  }, 1000);
 };
 
-var fetch_events = function fetch_events(event, start, end) {
-  return new Promise(function (resolve) {
-    console.log("Fetching " + event + " logs from " + start + " to " + end);
-    instance[event]({}, { fromBlock: start, toBlock: end }).get(function (_, result) {
-      return resolve(result);
-    });
-  });
-};
-
+var events_filter = null;
 var process_past_logs = function process_past_logs(start, end) {
-  Promise.all([fetch_events('PixelPainted', start, end), fetch_events('PixelUnavailable', start, end)]).then(function (values) {
-    var txs = {};
-    console.log("Processing " + values[0].length + " PixelPainted event" + (values[0].length == 1 ? '' : 's'));
-    values[0].forEach(function (l) {
-      update_pixel(l);
-      update_buffer(l);
+  console.log("Fetching logs from " + start + " to " + end);
+  if (events_filter) events_filter.stopWatching();
+  events_filter = instance.allEvents({ fromBlock: start, toBlock: end });
+  var txs = {};
+  events_filter.get(function (_, result) {
+    console.log("Processing " + result.length + " event" + (result.length == 1 ? '' : 's'));
+    result.forEach(function (l) {
       _LogUtils2.default.to_sorted_event(txs, l);
-    });
-    update_cache();
-    console.log("Processing " + values[1].length + " PixelUnavailable event" + (values[1].length == 1 ? '' : 's'));
-    values[1].forEach(function (l) {
-      return _LogUtils2.default.to_sorted_event(txs, l);
+      if (l.event === 'PixelPainted') {
+        update_pixel(l);
+        update_buffer(l);
+      }
     });
     Object.entries(txs).forEach(function (_ref) {
       var _ref2 = _slicedToArray(_ref, 2),
@@ -218,6 +198,7 @@ var process_past_logs = function process_past_logs(start, end) {
       pusher.trigger('main', 'mined_tx', tx_info);
       console.log("Tx pushed: " + tx_hash);
     });
+    update_cache();
   });
 };
 
@@ -266,8 +247,8 @@ var fetch_buffer = function fetch_buffer(g_block, b_number, pixels_data) {
   });
 };
 
-web3 = get_web3();
-canvasContract.setProvider(web3.currentProvider);
+init_provider();
+canvasContract.setProvider(provider);
 canvasContract.deployed().then(function (contract_instance) {
   var matching_contract = false;
   instance = contract_instance;
@@ -285,18 +266,20 @@ canvasContract.deployed().then(function (contract_instance) {
         matching_contract = cache_address === instance.address;
       }
       console.log('Fetching current block...');
-      web3.eth.getBlockNumber(function (error, b_number) {
-        if (error) throw error;else {
-          var safe_number = b_number - process.env.CONFIRMATIONS_NEEDED;
-          if (matching_contract) fetch_pixels(g_block, safe_number);else {
-            console.log('Last cache files point to older contract version, resetting cache...');
-            reset_cache(g_block, safe_number);
-          }
-          setInterval(function () {
-            console.log("Listening for events...");
-          }, 60000);
+      provider.sendAsync({
+        method: 'eth_blockNumber',
+        params: []
+      }, function (_, res) {
+        var safe_number = parseInt(res.result, 16) - process.env.CONFIRMATIONS_NEEDED;
+        if (matching_contract) fetch_pixels(g_block, safe_number);else {
+          console.log('Last cache files point to older contract version, resetting cache...');
+          reset_cache(g_block, safe_number);
         }
       });
     });
   });
 });
+
+setInterval(function () {
+  var a = 0;
+}, 99999999999);
