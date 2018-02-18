@@ -176,30 +176,33 @@ var start_watching = function start_watching() {
 };
 
 var events_filter = null;
+
+var process_events = function process_events(_, result) {
+  var txs = {};
+  console.log("Processing " + result.length + " event" + (result.length == 1 ? '' : 's'));
+  result.forEach(function (l) {
+    _LogUtils2.default.to_sorted_event(txs, l);
+    if (l.event === 'PixelPainted') {
+      update_pixel(l);
+      update_buffer(l);
+    }
+  });
+  Object.entries(txs).forEach(function (_ref) {
+    var _ref2 = _slicedToArray(_ref, 2),
+        tx_hash = _ref2[0],
+        tx_info = _ref2[1];
+
+    pusher.trigger('main', 'mined_tx', tx_info);
+    console.log("Tx pushed: " + tx_hash);
+  });
+  update_cache();
+};
+
 var process_past_logs = function process_past_logs(start, end) {
   console.log("Fetching logs from " + start + " to " + end);
   if (events_filter) events_filter.stopWatching();
   events_filter = instance.allEvents({ fromBlock: start, toBlock: end });
-  var txs = {};
-  events_filter.get(function (_, result) {
-    console.log("Processing " + result.length + " event" + (result.length == 1 ? '' : 's'));
-    result.forEach(function (l) {
-      _LogUtils2.default.to_sorted_event(txs, l);
-      if (l.event === 'PixelPainted') {
-        update_pixel(l);
-        update_buffer(l);
-      }
-    });
-    Object.entries(txs).forEach(function (_ref) {
-      var _ref2 = _slicedToArray(_ref, 2),
-          tx_hash = _ref2[0],
-          tx_info = _ref2[1];
-
-      pusher.trigger('main', 'mined_tx', tx_info);
-      console.log("Tx pushed: " + tx_hash);
-    });
-    update_cache();
-  });
+  events_filter.get(process_events);
 };
 
 var reset_cache = function reset_cache(g_block, b_number) {
