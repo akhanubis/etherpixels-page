@@ -14,7 +14,8 @@ var LogUtils = function () {
       i: log.args.i.toNumber(),
       color: log.args.new_color,
       price: log.args.price.toNumber(),
-      painted: log.event === 'PixelPainted'
+      painted: log.event === 'PixelPainted',
+      old_owner: log.args.old_owner
     });
   };
 
