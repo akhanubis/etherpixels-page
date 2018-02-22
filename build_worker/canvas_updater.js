@@ -45,12 +45,22 @@ var RpcSubprovider = require('web3-provider-engine/subproviders/rpc.js');
 
 var canvasContract = require('truffle-contract')(_Canvas2.default);
 var Pusher = require('pusher');
-var AWS = require('aws-sdk');
-var s3 = new AWS.S3();
 
 var buffer_entry_size = 32; /* 20 bytes for address, 12 bytes for locked_until */
 var free_pixel_buffer_entry = '0000000000000000000000000000000000000000000000000000048c27395000'; /* empty address and 5000000000000 starting price */
 var new_pixel_image_data = _CanvasUtils2.default.semitrans_image_data(Canvas.ImageData);
+
+var admin = require('firebase-admin');
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_APP_NAME,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: "-----BEGIN PRIVATE KEY-----\n" + process.env.FIREBASE_PRIVATE_KEY + "\n-----END PRIVATE KEY-----\n"
+  }),
+  databaseURL: "https://" + process.env.FIREBASE_APP_NAME + ".firebaseio.com",
+  storageBucket: process.env.FIREBASE_APP_NAME + ".appspot.com"
+});
+var bucket_ref = admin.storage().bucket();
 
 var canvas = null;
 var canvas_dimension = null;
@@ -70,10 +80,9 @@ var pusher = new Pusher({
   encrypted: true
 });
 
-var bucket = process.env.S3_BUCKET;
-var pixels_key = 'pixels.png';
-var buffer_key = 'addresses.buf';
-var init_key = 'init.json';
+var pixels_file_name = 'pixels.png';
+var buffer_file_name = 'addresses.buf';
+var init_file_name = 'init.json';
 
 var init_provider = function init_provider() {
   if (process.env.NODE_ENV === 'development') {
@@ -94,17 +103,19 @@ var init_provider = function init_provider() {
   }
 };
 
-var upload_callback = function upload_callback(err, data) {
-  console.log(err ? err : "New " + data.key + ": " + data.ETag);
+var wrap_upload = function wrap_upload(filename, content) {
+  bucket_ref.file(filename).save(content).then(function () {
+    console.log(filename + " uploaded");
+  }).catch(function () {
+    console.log(filename + " upload failed");
+  });
 };
 
 var update_cache = function update_cache() {
   console.log("Updating cache...");
-  s3.upload({ ACL: 'public-read', Bucket: bucket, Key: pixels_key, Body: canvas.toBuffer() }, upload_callback);
-  var init_json = JSON.stringify({ contract_address: instance.address, last_cache_block: current_block });
-  s3.upload({ ACL: 'public-read', Bucket: bucket, Key: init_key, Body: init_json }, upload_callback);
-  var deflated_body = zlib.deflateRawSync(address_buffer);
-  s3.upload({ ACL: 'public-read', Bucket: bucket, Key: buffer_key, Body: deflated_body }, upload_callback);
+  wrap_upload(pixels_file_name, canvas.toBuffer());
+  wrap_upload(init_file_name, JSON.stringify({ contract_address: instance.address, last_cache_block: current_block }));
+  wrap_upload(buffer_file_name, zlib.deflateRawSync(address_buffer));
 };
 
 var process_new_block = function process_new_block(b_number) {
@@ -240,22 +251,22 @@ var continue_cache = function continue_cache(b_number, pixels_data, buffer_data)
 };
 
 var fetch_pixels = function fetch_pixels(g_block, b_number) {
-  console.log("Reading " + bucket + "/" + pixels_key + "...");
-  s3.getObject({ Bucket: bucket, Key: pixels_key }, function (error, pixels_data) {
+  console.log("Reading " + pixels_file_name + "...");
+  bucket_ref.file(pixels_file_name).download(function (error, pixels_data) {
     if (error) {
       console.log('Last pixels file not found');
       reset_cache(g_block, b_number);
-    } else fetch_buffer(g_block, b_number, pixels_data.Body);
+    } else fetch_buffer(g_block, b_number, pixels_data);
   });
 };
 
 var fetch_buffer = function fetch_buffer(g_block, b_number, pixels_data) {
-  console.log("Reading " + bucket + "/" + buffer_key + "...");
-  s3.getObject({ Bucket: bucket, Key: buffer_key }, function (error, buffer_data) {
+  console.log("Reading " + buffer_file_name + "...");
+  bucket_ref.file(buffer_file_name).download(function (error, buffer_data) {
     if (error) {
       console.log('Last buffer file not found');
       reset_cache(g_block, b_number);
-    } else continue_cache(b_number, pixels_data, buffer_data.Body);
+    } else continue_cache(b_number, pixels_data, buffer_data);
   });
 };
 
@@ -269,9 +280,9 @@ canvasContract.deployed().then(function (contract_instance) {
     var g_block = halving_info[0].toNumber();
     _ContractToWorld2.default.init(halving_info);
     console.log("Halving array: " + halving_info + "\nFetching init.json...");
-    s3.getObject({ Bucket: bucket, Key: init_key }, function (error, data) {
+    bucket_ref.file(init_file_name).download(function (error, data) {
       if (error) console.log('File init.json not found');else {
-        var json_data = JSON.parse(data.Body.toString());
+        var json_data = JSON.parse(data.toString());
         last_cache_block = json_data.last_cache_block;
         console.log("Last block cached: " + last_cache_block);
         var cache_address = json_data.contract_address;

@@ -18,12 +18,13 @@
     "url": "https://github.com/akhanubis/fictional-chainsaw-page/issues"
   },
   "dependencies": {
-    "truffle-contract": "^1.1.8",
-    "truffle-solidity-loader": "0.0.8",
     "aws-sdk": "^2.183.0",
     "canvas": "^1.6.9",
+    "dotenv": "^4.0.0",
+    "firebase-admin": "^5.9.0",
     "left-pad": "^1.2.0",
     "pusher": "^1.5.1",
-    "dotenv": "^4.0.0"
+    "truffle-contract": "^1.1.8",
+    "truffle-solidity-loader": "0.0.8"
   }
 }
