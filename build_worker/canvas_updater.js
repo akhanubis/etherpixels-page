@@ -1,7 +1,5 @@
 "use strict";
 
-var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
-
 var _Canvas = require("../build/contracts/Canvas.json");
 
 var _Canvas2 = _interopRequireDefault(_Canvas);
@@ -44,7 +42,6 @@ var FilterSubprovider = require('web3-provider-engine/subproviders/filters.js');
 var RpcSubprovider = require('web3-provider-engine/subproviders/rpc.js');
 
 var canvasContract = require('truffle-contract')(_Canvas2.default);
-var Pusher = require('pusher');
 
 var buffer_entry_size = 32; /* 20 bytes for address, 12 bytes for locked_until */
 var free_pixel_buffer_entry = '0000000000000000000000000000000000000000000000000000048c27395000'; /* empty address and 5000000000000 starting price */
@@ -72,13 +69,6 @@ var max_index = null;
 var instance = null;
 var provider = null;
 var logs_formatter = null;
-var pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID,
-  key: process.env.PUSHER_APP_KEY,
-  secret: process.env.PUSHER_APP_SECRET,
-  cluster: process.env.PUSHER_APP_CLUSTER,
-  encrypted: true
-});
 
 var pixels_file_name = 'pixels.png';
 var buffer_file_name = 'addresses.buf';
@@ -124,7 +114,6 @@ var process_new_block = function process_new_block(b_number) {
   var old_dimension = canvas_dimension;
   var old_index = store_new_index(b_number);
   resize_assets(old_index);
-  pusher.trigger('main', 'new_block', { new_block: b_number });
 };
 
 var update_pixel = function update_pixel(log) {
@@ -186,15 +175,28 @@ var start_watching = function start_watching() {
         var last_processed_block = current_block;
         process_new_block(safe_number);
         process_past_logs(last_processed_block + 1, safe_number);
+        prune_database(last_processed_block);
       }
     });
   }, 10000);
 };
 
-var process_logs = function process_logs(_, response) {
-  console.log("Processing " + response.result.length + " event" + (response.result.length == 1 ? '' : 's'));
+var prune_database = function prune_database(until_b_number) {
+  console.log("Pruning database until " + until_b_number);
+  var blocks_ref = admin.database().ref('blocks');
+  blocks_ref.orderByKey().endAt(until_b_number.toString()).once('value').then(function (snapshot) {
+    var updates = {};
+    snapshot.forEach(function (child) {
+      updates[child.key] = null;
+    });
+    blocks_ref.update(updates);
+  });
+};
+
+var process_logs = function process_logs(b_number, logs) {
+  console.log("Processing " + logs.length + " event" + (logs.length == 1 ? '' : 's'));
   var txs = {};
-  response.result.forEach(function (l) {
+  logs.forEach(function (l) {
     var formatted = logs_formatter(l);
     _LogUtils2.default.to_sorted_event(txs, formatted);
     if (formatted.event === 'PixelPainted') {
@@ -202,14 +204,8 @@ var process_logs = function process_logs(_, response) {
       update_buffer(formatted);
     }
   });
-  Object.entries(txs).forEach(function (_ref) {
-    var _ref2 = _slicedToArray(_ref, 2),
-        tx_hash = _ref2[0],
-        tx_info = _ref2[1];
-
-    pusher.trigger('main', 'mined_tx', tx_info);
-    console.log("Tx pushed: " + tx_hash);
-  });
+  console.log("Storing block " + b_number);
+  admin.database().ref("blocks/" + b_number).set(logs.length ? txs : 0);
   update_cache();
 };
 
@@ -222,7 +218,9 @@ var process_past_logs = function process_past_logs(start, end) {
       toBlock: "0x" + end.toString(16),
       address: instance.address
     }]
-  }, process_logs);
+  }, function (_, response) {
+    return process_logs(end, response.result);
+  });
 };
 
 var reset_cache = function reset_cache(g_block, b_number) {

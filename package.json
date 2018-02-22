@@ -2,8 +2,7 @@
   "version": "0.0.1",
   "description": "",
   "scripts": {
-    "start_canvas_updater": "node build_worker/canvas_updater.js",
-    "send_server_message": "node build_scripts/push_alert.js"
+    "start_canvas_updater": "node build_worker/canvas_updater.js"
   },
   "repository": {
     "type": "git",
@@ -18,12 +17,10 @@
     "url": "https://github.com/akhanubis/fictional-chainsaw-page/issues"
   },
   "dependencies": {
-    "aws-sdk": "^2.183.0",
     "canvas": "^1.6.9",
     "dotenv": "^4.0.0",
     "firebase-admin": "^5.9.0",
     "left-pad": "^1.2.0",
-    "pusher": "^1.5.1",
     "truffle-contract": "^1.1.8",
     "truffle-solidity-loader": "0.0.8"
   }
