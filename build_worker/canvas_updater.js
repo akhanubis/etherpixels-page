@@ -1,5 +1,7 @@
 "use strict";
 
+var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
 var _Canvas = require("../build/contracts/Canvas.json");
 
 var _Canvas2 = _interopRequireDefault(_Canvas);
@@ -46,6 +48,7 @@ var canvasContract = require('truffle-contract')(_Canvas2.default);
 var buffer_entry_size = 32; /* 20 bytes for address, 12 bytes for locked_until */
 var free_pixel_buffer_entry = '0000000000000000000000000000000000000000000000000000048c27395000'; /* empty address and 5000000000000 starting price */
 var new_pixel_image_data = _CanvasUtils2.default.semitrans_image_data(Canvas.ImageData);
+var new_pixel_price_data = _CanvasUtils2.default.new_price_data(Canvas.ImageData);
 
 var admin = require('firebase-admin');
 admin.initializeApp({
@@ -58,21 +61,21 @@ admin.initializeApp({
   storageBucket: process.env.FIREBASE_APP_NAME + ".appspot.com"
 });
 var bucket_ref = admin.storage().bucket();
-
-var canvas = null;
-var canvas_dimension = null;
-var pixel_buffer_ctx = null;
-var address_buffer = Buffer.alloc(0);
-var last_cache_block = null;
-var current_block = null;
-var max_index = null;
-var instance = null;
-var provider = null;
-var logs_formatter = null;
-
 var pixels_file_name = 'pixels.png';
+var prices_file_name = 'prices.png';
 var buffer_file_name = 'addresses.buf';
 var init_file_name = 'init.json';
+
+var canvas_dimension = void 0,
+    pixel_buffer_ctx = void 0,
+    prices_ctx = void 0,
+    last_cache_block = void 0,
+    current_block = void 0,
+    max_index = void 0,
+    instance = void 0,
+    provider = void 0,
+    logs_formatter = void 0;
+var address_buffer = Buffer.alloc(0);
 
 var init_provider = function init_provider() {
   if (process.env.NODE_ENV === 'development') {
@@ -103,7 +106,8 @@ var wrap_upload = function wrap_upload(filename, content) {
 
 var update_cache = function update_cache() {
   console.log("Updating cache...");
-  wrap_upload(pixels_file_name, canvas.toBuffer());
+  wrap_upload(pixels_file_name, pixel_buffer_ctx.canvas.toBuffer());
+  wrap_upload(prices_file_name, prices_ctx.canvas.toBuffer());
   wrap_upload(init_file_name, JSON.stringify({ contract_address: instance.address, last_cache_block: current_block }));
   wrap_upload(buffer_file_name, zlib.deflateRawSync(address_buffer));
 };
@@ -120,8 +124,10 @@ var update_pixel = function update_pixel(log) {
   var world_coords = _ContractToWorld2.default.index_to_coords(log.args.i.toNumber());
   var canvas_coords = _WorldToCanvas2.default.to_buffer(world_coords.x, world_coords.y, { width: canvas_dimension, height: canvas_dimension });
   var pixel_array = new Uint8ClampedArray(_ColorUtils2.default.bytes3ToIntArray(log.args.new_color));
-  var image_data = new Canvas.ImageData(pixel_array, 1, 1);
-  pixel_buffer_ctx.putImageData(image_data, canvas_coords.x, canvas_coords.y);
+  var pixel_image_data = new Canvas.ImageData(pixel_array, 1, 1);
+  pixel_buffer_ctx.putImageData(pixel_image_data, canvas_coords.x, canvas_coords.y);
+  var price_image_data = new Canvas.ImageData(_ColorUtils2.default.priceAsColor(log.args.price), 1, 1);
+  prices_ctx.putImageData(price_image_data, canvas_coords.x, canvas_coords.y);
 };
 
 var update_buffer = function update_buffer(log) {
@@ -140,10 +146,10 @@ var store_new_index = function store_new_index(b_number) {
   return old_index;
 };
 
-var resize_canvas = function resize_canvas(old_i) {
+var resize_canvas = function resize_canvas(ctx, new_image_data, old_i) {
   console.log("Resizing canvas to: " + canvas_dimension + "x" + canvas_dimension + "...");
-  canvas = new Canvas(canvas_dimension, canvas_dimension); /* pixel_buffer_ctx keeps a temp reference to old canvas */
-  pixel_buffer_ctx = _CanvasUtils2.default.resize_canvas(pixel_buffer_ctx, canvas, { width: canvas_dimension, height: canvas_dimension }, old_i, max_index, new_pixel_image_data).ctx;
+  var new_canvas = new Canvas(canvas_dimension, canvas_dimension); /* ctx keeps a temp reference to old canvas */
+  return _CanvasUtils2.default.resize_canvas(ctx, new_canvas, { width: canvas_dimension, height: canvas_dimension }, old_i, max_index, new_image_data).ctx;
 };
 
 var resize_buffer = function resize_buffer(old_i) {
@@ -154,7 +160,8 @@ var resize_buffer = function resize_buffer(old_i) {
 
 var resize_assets = function resize_assets(old_i) {
   console.log("Resizing assets: " + old_i + " => " + max_index + "...");
-  resize_canvas(old_i);
+  pixel_buffer_ctx = resize_canvas(pixel_buffer_ctx, new_pixel_image_data, old_i);
+  prices_ctx = resize_canvas(prices_ctx, new_pixel_price_data, old_i);
   resize_buffer(old_i);
 };
 
@@ -166,15 +173,11 @@ var start_watching = function start_watching() {
   process_past_logs(last_cache_block, current_block);
 
   setInterval(function () {
-    provider.sendAsync({
-      method: 'eth_blockNumber',
-      params: []
-    }, function (_, res) {
-      var safe_number = parseInt(res.result, 16) - process.env.CONFIRMATIONS_NEEDED;
-      if (safe_number > current_block) {
+    fetch_current_block().then(function (new_block) {
+      if (new_block > current_block) {
         var last_processed_block = current_block;
-        process_new_block(safe_number);
-        process_past_logs(last_processed_block + 1, safe_number);
+        process_new_block(new_block);
+        process_past_logs(last_processed_block + 1, new_block);
         prune_database(last_processed_block);
       }
     });
@@ -225,21 +228,27 @@ var process_past_logs = function process_past_logs(start, end) {
 
 var reset_cache = function reset_cache(g_block, b_number) {
   console.log("Resetting cache...");
+  admin.database().ref('blocks').set(null);
   max_index = -1;
   last_cache_block = g_block;
   process_new_block(b_number);
   start_watching();
 };
 
-var continue_cache = function continue_cache(b_number, pixels_data, buffer_data) {
+var continue_cache = function continue_cache(b_number, buffer_data, pixels_data, prices_data) {
   console.log('Using stored cache...');
   /* init the canvas with the last cached image */
   var img = new Canvas.Image();
   img.src = "data:image/png;base64," + Buffer.from(pixels_data).toString('base64');
   console.log("Last cache dimensions: " + img.width + "x" + img.height);
-  canvas = new Canvas(img.width, img.height);
-  pixel_buffer_ctx = canvas.getContext('2d');
+  var temp_canvas = new Canvas(img.width, img.height);
+  pixel_buffer_ctx = temp_canvas.getContext('2d');
   pixel_buffer_ctx.drawImage(img, 0, 0);
+  /* init the prices canvas with the last cached image */
+  img.src = "data:image/png;base64," + Buffer.from(prices_data).toString('base64');
+  temp_canvas = new Canvas(img.width, img.height);
+  prices_ctx = temp_canvas.getContext('2d');
+  prices_ctx.drawImage(img, 0, 0);
   /* init the buffer with the last cached buffer */
   address_buffer = zlib.inflateRawSync(buffer_data);
   max_index = _ContractToWorld2.default.max_index(last_cache_block); /* temp set mat_index to old_index to set old_index to the right value */
@@ -248,23 +257,14 @@ var continue_cache = function continue_cache(b_number, pixels_data, buffer_data)
   start_watching();
 };
 
-var fetch_pixels = function fetch_pixels(g_block, b_number) {
-  console.log("Reading " + pixels_file_name + "...");
-  bucket_ref.file(pixels_file_name).download(function (error, pixels_data) {
-    if (error) {
-      console.log('Last pixels file not found');
-      reset_cache(g_block, b_number);
-    } else fetch_buffer(g_block, b_number, pixels_data);
-  });
-};
-
-var fetch_buffer = function fetch_buffer(g_block, b_number, pixels_data) {
-  console.log("Reading " + buffer_file_name + "...");
-  bucket_ref.file(buffer_file_name).download(function (error, buffer_data) {
-    if (error) {
-      console.log('Last buffer file not found');
-      reset_cache(g_block, b_number);
-    } else continue_cache(b_number, pixels_data, buffer_data);
+var fetch_current_block = function fetch_current_block() {
+  return new Promise(function (resolve, reject) {
+    provider.sendAsync({
+      method: 'eth_blockNumber',
+      params: []
+    }, function (err, res) {
+      if (err) reject(err);else resolve(parseInt(res.result, 16) - process.env.CONFIRMATIONS_NEEDED);
+    });
   });
 };
 
@@ -277,25 +277,30 @@ canvasContract.deployed().then(function (contract_instance) {
   instance.HalvingInfo.call().then(function (halving_info) {
     var g_block = halving_info[0].toNumber();
     _ContractToWorld2.default.init(halving_info);
-    console.log("Halving array: " + halving_info + "\nFetching init.json...");
-    bucket_ref.file(init_file_name).download(function (error, data) {
-      if (error) console.log('File init.json not found');else {
-        var json_data = JSON.parse(data.toString());
+    console.log("Halving array: " + halving_info + "\nFetching initial data...");
+    fetch_current_block().then(function (b_number) {
+      Promise.all([bucket_ref.file(init_file_name).download(), bucket_ref.file(buffer_file_name).download(), bucket_ref.file(pixels_file_name).download(), bucket_ref.file(prices_file_name).download()]).then(function (_ref) {
+        var _ref2 = _slicedToArray(_ref, 4),
+            init_data = _ref2[0],
+            buffer_data = _ref2[1],
+            pixels_data = _ref2[2],
+            prices_data = _ref2[3];
+
+        init_data = init_data[0];
+        buffer_data = buffer_data[0];
+        pixels_data = pixels_data[0];
+        prices_data = prices_data[0];
+        var json_data = JSON.parse(init_data.toString());
         last_cache_block = json_data.last_cache_block;
         console.log("Last block cached: " + last_cache_block);
         var cache_address = json_data.contract_address;
-        matching_contract = cache_address === instance.address;
-      }
-      console.log('Fetching current block...');
-      provider.sendAsync({
-        method: 'eth_blockNumber',
-        params: []
-      }, function (_, res) {
-        var safe_number = parseInt(res.result, 16) - process.env.CONFIRMATIONS_NEEDED;
-        if (matching_contract) fetch_pixels(g_block, safe_number);else {
+        if (cache_address === instance.address) continue_cache(b_number, buffer_data, pixels_data, prices_data);else {
           console.log('Last cache files point to older contract version, resetting cache...');
-          reset_cache(g_block, safe_number);
+          reset_cache(g_block, b_number);
         }
+      }).catch(function (err) {
+        console.log(err);
+        reset_cache(g_block, b_number);
       });
     });
   });

@@ -12,12 +12,15 @@ var _WorldToCanvas = require('./WorldToCanvas.js');
 
 var _WorldToCanvas2 = _interopRequireDefault(_WorldToCanvas);
 
+var _ColorUtils = require('./ColorUtils.js');
+
+var _ColorUtils2 = _interopRequireDefault(_ColorUtils);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var CanvasUtils = function () {
   /* so I cant do new ImageData... on CanvasUtils definition time because the script doesnt know about ImageData :/ */
   var cached_transparent_image_data = null;
-
   var transparent_image_data = function transparent_image_data(image_data_class) {
     cached_transparent_image_data = cached_transparent_image_data || new image_data_class(new Uint8ClampedArray([0, 0, 0, 0]), 1, 1);
     return cached_transparent_image_data;
@@ -27,6 +30,12 @@ var CanvasUtils = function () {
   var semitrans_image_data = function semitrans_image_data(image_data_class) {
     cached_semitrans_image_data = cached_semitrans_image_data || new image_data_class(new Uint8ClampedArray([0, 0, 0, 127]), 1, 1);
     return cached_semitrans_image_data;
+  };
+
+  var cached_new_price_data = null;
+  var new_price_data = function new_price_data(image_data_class) {
+    cached_new_price_data = cached_new_price_data || new image_data_class(_ColorUtils2.default.priceAsColor(5000000000000), 1, 1);
+    return cached_new_price_data;
   };
 
   var getContext = function getContext(canvas, aliasing) {
@@ -90,6 +99,7 @@ var CanvasUtils = function () {
     resize_canvas: resize_canvas,
     transparent_image_data: transparent_image_data,
     semitrans_image_data: semitrans_image_data,
+    new_price_data: new_price_data,
     new_canvas: new_canvas,
     resize_secondary_canvas: resize_secondary_canvas
   };
