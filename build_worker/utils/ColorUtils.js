@@ -64,6 +64,8 @@ var ColorUtils = function () {
     };
   };
 
+  var priceColorMaxPrice = 100000000000000;
+
   var priceAsColor = function priceAsColor(price) {
     /*
     i = 0   => 0, 255, 0 green
@@ -71,7 +73,7 @@ var ColorUtils = function () {
     i = 1   => 255, 0, 0 red
     clamped at 0.0001 eth for now...
     */
-    var intensity = price / 100000000000000;
+    var intensity = price / priceColorMaxPrice;
     return new Uint8ClampedArray([510 * intensity, 510 * (1 - intensity), 0, 255]);
   };
 
@@ -87,7 +89,8 @@ var ColorUtils = function () {
     intArrayToHex: intArrayToHex,
     emptyColor: emptyColor,
     randomColor: randomColor,
-    priceAsColor: priceAsColor
+    priceAsColor: priceAsColor,
+    priceColorMaxPrice: priceColorMaxPrice
   };
 }();
 

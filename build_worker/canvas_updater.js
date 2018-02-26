@@ -166,6 +166,7 @@ var resize_assets = function resize_assets(old_i) {
 };
 
 var start_watching = function start_watching() {
+
   var events_filter = instance.allEvents();
   events_filter.stopWatching();
   logs_formatter = events_filter.formatter;
@@ -174,6 +175,7 @@ var start_watching = function start_watching() {
 
   setInterval(function () {
     fetch_current_block().then(function (new_block) {
+
       if (new_block > current_block) {
         var last_processed_block = current_block;
         process_new_block(new_block);
@@ -197,6 +199,7 @@ var prune_database = function prune_database(until_b_number) {
 };
 
 var process_logs = function process_logs(b_number, logs) {
+  logs = logs || [];
   console.log("Processing " + logs.length + " event" + (logs.length == 1 ? '' : 's'));
   var txs = {};
   logs.forEach(function (l) {
