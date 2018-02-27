@@ -2,9 +2,9 @@
 
 var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
 
-var _Canvas = require("../build/contracts/Canvas.json");
+var _Etherpixels = require("../build/contracts/Etherpixels.json");
 
-var _Canvas2 = _interopRequireDefault(_Canvas);
+var _Etherpixels2 = _interopRequireDefault(_Etherpixels);
 
 var _ColorUtils = require("./utils/ColorUtils.js");
 
@@ -43,7 +43,7 @@ var ProviderEngine = require('web3-provider-engine');
 var FilterSubprovider = require('web3-provider-engine/subproviders/filters.js');
 var RpcSubprovider = require('web3-provider-engine/subproviders/rpc.js');
 
-var canvasContract = require('truffle-contract')(_Canvas2.default);
+var canvasContract = require('truffle-contract')(_Etherpixels2.default);
 
 var buffer_entry_size = 32; /* 20 bytes for address, 12 bytes for locked_until */
 var free_pixel_buffer_entry = '0000000000000000000000000000000000000000000000000000048c27395000'; /* empty address and 5000000000000 starting price */
