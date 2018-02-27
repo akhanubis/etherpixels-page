@@ -10,15 +10,49 @@ var ColorUtils = function () {
     return ('00' + int.toString(16)).slice(-2);
   };
 
-  var rgbToHex = function rgbToHex(rgb) {
-    return '#' + _intToPaddedHex(rgb.r) + _intToPaddedHex(rgb.g) + _intToPaddedHex(rgb.b);
+  var _randomChannel = function _randomChannel() {
+    return Math.floor(Math.random() * 256);
   };
 
-  var hexToIntArray = function hexToIntArray(hex) {
-    return [parseInt(hex.substr(1, 2), 16), parseInt(hex.substr(3, 2), 16), parseInt(hex.substr(5, 2), 16), 255];
+  var randomColor = function randomColor() {
+    return {
+      r: _randomChannel(),
+      g: _randomChannel(),
+      b: _randomChannel(),
+      a: 1
+    };
   };
 
-  var intArrayToRgb = function intArrayToRgb(int_array) {
+  var priceColorMaxPrice = 100000000000000;
+
+  /*
+    i = 0   => 0, 255, 0 green
+    i = 0.5 => 255, 255, 0 yellow
+    i = 1   => 255, 0, 0 red
+    clamped at 0.0001 eth for now...
+  */
+  var priceAsColor = function priceAsColor(price) {
+    var intensity = price / priceColorMaxPrice;
+    return new Uint8ClampedArray([510 * intensity, 510 * (1 - intensity), 0, 255]);
+  };
+
+  var rgbaToHex = function rgbaToHex(rgba) {
+    return '#' + _intToPaddedHex(rgba.r) + _intToPaddedHex(rgba.g) + _intToPaddedHex(rgba.b);
+  };
+
+  var rgbaToBytes3 = function rgbaToBytes3(rgba) {
+    return '0x' + rgbaToHex(rgba).substr(1, 6);
+  };
+
+  var rgbaToIntArray = function rgbaToIntArray(rgba) {
+    return [rgba.r, rgba.g, rgba.b, rgba.a * 255];
+  };
+
+  var rgbaToString = function rgbaToString(rgba) {
+    return 'rgba(' + Object.values(rgba).join(', ') + ')';
+  };
+
+  var intArrayToRgba = function intArrayToRgba(int_array) {
     return {
       r: int_array[0],
       g: int_array[1],
@@ -31,61 +65,27 @@ var ColorUtils = function () {
     return '#' + _intToPaddedHex(int_array[0]) + _intToPaddedHex(int_array[1]) + _intToPaddedHex(int_array[2]);
   };
 
-  var hexToRgb = function hexToRgb(hex) {
-    return intArrayToRgb(hexToIntArray(hex));
-  };
-
-  var hexToBytes3 = function hexToBytes3(hex) {
-    return '0x' + hex.substr(1, 6);
-  };
-
-  var _randomChannel = function _randomChannel() {
-    return Math.floor(Math.random() * 256);
-  };
-
-  var bytes3ToHex = function bytes3ToHex(bytes3) {
-    return '#' + bytes3.substr(2, 6);
-  };
-
-  var rgbToBytes3 = function rgbToBytes3(rgb) {
-    return hexToBytes3(rgbToHex(rgb));
-  };
-
-  var bytes3ToIntArray = function bytes3ToIntArray(bytes3) {
-    return hexToIntArray(bytes3ToHex(bytes3));
-  };
-
-  var randomColor = function randomColor() {
+  var bytes3ToRgba = function bytes3ToRgba(bytes3) {
     return {
-      r: _randomChannel(),
-      g: _randomChannel(),
-      b: _randomChannel(),
-      a: 255
+      r: parseInt(bytes3.substr(2, 2), 16),
+      g: parseInt(bytes3.substr(4, 2), 16),
+      b: parseInt(bytes3.substr(6, 2), 16),
+      a: 1
     };
   };
 
-  var priceColorMaxPrice = 100000000000000;
-
-  var priceAsColor = function priceAsColor(price) {
-    /*
-    i = 0   => 0, 255, 0 green
-    i = 0.5 => 255, 255, 0 yellow
-    i = 1   => 255, 0, 0 red
-    clamped at 0.0001 eth for now...
-    */
-    var intensity = price / priceColorMaxPrice;
-    return new Uint8ClampedArray([510 * intensity, 510 * (1 - intensity), 0, 255]);
+  var bytes3ToIntArray = function bytes3ToIntArray(bytes3) {
+    return [parseInt(bytes3.substr(2, 2), 16), parseInt(bytes3.substr(4, 2), 16), parseInt(bytes3.substr(6, 2), 16), 255];
   };
 
   return {
-    rgbToBytes3: rgbToBytes3,
-    rgbToHex: rgbToHex,
-    bytes3ToHex: bytes3ToHex,
+    rgbaToBytes3: rgbaToBytes3,
+    rgbaToHex: rgbaToHex,
+    rgbaToIntArray: rgbaToIntArray,
+    rgbaToString: rgbaToString,
     bytes3ToIntArray: bytes3ToIntArray,
-    hexToRgb: hexToRgb,
-    hexToIntArray: hexToIntArray,
-    hexToBytes3: hexToBytes3,
-    intArrayToRgb: intArrayToRgb,
+    bytes3ToRgba: bytes3ToRgba,
+    intArrayToRgba: intArrayToRgba,
     intArrayToHex: intArrayToHex,
     emptyColor: emptyColor,
     randomColor: randomColor,

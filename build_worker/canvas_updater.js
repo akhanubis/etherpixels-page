@@ -166,7 +166,6 @@ var resize_assets = function resize_assets(old_i) {
 };
 
 var start_watching = function start_watching() {
-
   var events_filter = instance.allEvents();
   events_filter.stopWatching();
   logs_formatter = events_filter.formatter;
@@ -175,12 +174,17 @@ var start_watching = function start_watching() {
 
   setInterval(function () {
     fetch_current_block().then(function (new_block) {
-
       if (new_block > current_block) {
         var last_processed_block = current_block;
-        process_new_block(new_block);
-        process_past_logs(last_processed_block + 1, new_block);
-        prune_database(last_processed_block);
+        try {
+          process_new_block(new_block);
+          process_past_logs(last_processed_block + 1, new_block);
+          prune_database(last_processed_block);
+        } catch (e) {
+          console.log('Error while processing new block:');
+          console.log(e);
+          current_block = last_processed_block;
+        }
       }
     });
   }, 10000);
