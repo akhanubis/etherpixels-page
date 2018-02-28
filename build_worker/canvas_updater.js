@@ -99,8 +99,9 @@ var init_provider = function init_provider() {
 var wrap_upload = function wrap_upload(filename, content) {
   bucket_ref.file(filename).save(content).then(function () {
     console.log(filename + " uploaded");
-  }).catch(function () {
+  }).catch(function (e) {
     console.log(filename + " upload failed");
+    console.log(e);
   });
 };
 
