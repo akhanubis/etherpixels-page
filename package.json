@@ -1,6 +1,9 @@
 {
   "version": "0.0.1",
   "description": "",
+  "engines": {
+    "node": "8.17.x"
+  },
   "scripts": {
     "start_canvas_updater": "node build_worker/canvas_updater.js"
   },
