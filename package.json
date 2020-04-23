@@ -20,11 +20,10 @@
     "url": "https://github.com/akhanubis/fictional-chainsaw-page/issues"
   },
   "dependencies": {
-    "canvas": "^1.6.9",
+    "canvas": "^2.6.1",
     "dotenv": "^4.0.0",
     "firebase-admin": "^5.9.0",
     "left-pad": "^1.2.0",
-    "truffle-contract": "^1.1.8",
-    "truffle-solidity-loader": "0.0.8"
+    "truffle-contract": "^1.1.8"
   }
 }
